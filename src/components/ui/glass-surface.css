@@ -1,0 +1,89 @@
+/* ─── Glass Surface ─────────────────────────────────────── */
+
+.glass-surface {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Hidden SVG filter element */
+.glass-surface__filter {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+/* Content layer */
+.glass-surface__content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border-radius: inherit;
+}
+
+/* ─── SVG-supported mode (chromatic aberration glass) ──── */
+/* backdrop-filter with url() is applied via inline style in the component */
+
+.glass-surface--svg {
+  box-shadow:
+    inset 0 0.5px 0 0 rgba(255, 255, 255, 0.15),
+    inset 0 -0.5px 0 0 rgba(0, 0, 0, 0.08),
+    inset 0.5px 0 0 0 rgba(255, 255, 255, 0.08),
+    inset -0.5px 0 0 0 rgba(255, 255, 255, 0.08),
+    0 2px 8px -2px rgba(0, 0, 0, 0.12),
+    0 8px 24px -4px rgba(0, 0, 0, 0.08);
+}
+
+/* ─── Fallback mode (simple backdrop-blur) ─────────────── */
+
+.glass-surface--fallback {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(40px) saturate(1.2);
+  -webkit-backdrop-filter: blur(40px) saturate(1.2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    inset 0 0.5px 0 0 rgba(255, 255, 255, 0.06),
+    inset 0 -0.5px 0 0 rgba(0, 0, 0, 0.04);
+}
+
+/* ─── Focus visible ────────────────────────────────────── */
+
+.glass-surface:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.6);
+  outline-offset: 2px;
+}
+
+/* ─── Fallback for browsers without backdrop-filter ────── */
+
+@supports not (backdrop-filter: blur(1px)) {
+  .glass-surface--fallback,
+  .glass-surface--svg {
+    background: rgba(30, 30, 40, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .glass-surface--fallback::before,
+  .glass-surface--svg::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.08) 0%,
+      rgba(255, 255, 255, 0.02) 100%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+}

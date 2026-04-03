@@ -1,0 +1,48 @@
+{
+  "name": "flowstate",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack -p 3021",
+    "build": "next build",
+    "start": "next start -p 3021",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^2",
+    "@ai-sdk/react": "^2",
+    "@huggingface/transformers": "^3",
+    "@supabase/ssr": "^0.6",
+    "@supabase/supabase-js": "^2",
+    "ai": "^6",
+    "class-variance-authority": "^0.7",
+    "clsx": "^2",
+    "framer-motion": "^12.38.0",
+    "geist": "^1",
+    "lucide-react": "latest",
+    "next": "latest",
+    "radix-ui": "^1.4.3",
+    "react": "^19",
+    "react-dom": "^19",
+    "tailwind-merge": "^3",
+    "zod": "^3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "latest",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "onnxruntime-node",
+      "sharp",
+      "unrs-resolver",
+      "protobufjs"
+    ]
+  }
+}

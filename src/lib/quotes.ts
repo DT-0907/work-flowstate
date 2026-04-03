@@ -1,0 +1,121 @@
+export interface Quote {
+  text: string;
+  author: string | null;
+}
+
+export const quotes: Quote[] = [
+  { text: "You're not tired, you're uninspired. Find something worth losing sleep over.", author: null },
+  { text: "Someone busier than you is working right now.", author: null },
+  { text: "Discipline is choosing between what you want now and what you want most.", author: "Abraham Lincoln" },
+  { text: "The graveyard is full of people who had potential.", author: null },
+  { text: "Don't stop when you're tired. Stop when you're done.", author: "David Goggins" },
+  { text: "Suffer the pain of discipline or suffer the pain of regret.", author: "Jim Rohn" },
+  { text: "Your competition is working while you're scrolling.", author: null },
+  { text: "Nobody cares. Work harder.", author: "Cameron Hanes" },
+  { text: "You don't rise to the level of your goals. You fall to the level of your systems.", author: "James Clear" },
+  { text: "Hard choices, easy life. Easy choices, hard life.", author: "Jerzy Gregorek" },
+  { text: "If you're not embarrassed by who you were last year, you're not growing fast enough.", author: null },
+  { text: "The cost of being average is higher than the cost of being extraordinary.", author: null },
+  { text: "Motivation is garbage. Motivation is for amateurs.", author: "David Goggins" },
+  { text: "Rest at the end, not in the middle.", author: "Kobe Bryant" },
+  { text: "I don't count my sit-ups. I only start counting when it starts hurting.", author: "Muhammad Ali" },
+  { text: "The only thing standing between you and your goal is the story you keep telling yourself.", author: "Jordan Belfort" },
+  { text: "You have the same number of hours in a day as Beyoncé.", author: null },
+  { text: "If it was easy, everyone would do it.", author: null },
+  { text: "The pain you feel today is the strength you feel tomorrow.", author: null },
+  { text: "Success is not owned. It's leased. And rent is due every day.", author: "J.J. Watt" },
+  { text: "Be so good they can't ignore you.", author: "Steve Martin" },
+  { text: "The difference between ordinary and extraordinary is that little extra.", author: "Jimmy Johnson" },
+  { text: "Your future self is watching you right now through memories.", author: null },
+  { text: "Every next level of your life will demand a different version of you.", author: null },
+  { text: "Comfort is the enemy of progress.", author: "P.T. Barnum" },
+  { text: "The best time to plant a tree was 20 years ago. The second best time is now.", author: "Chinese Proverb" },
+  { text: "You didn't come this far to only come this far.", author: null },
+  { text: "The man who moves a mountain begins by carrying away small stones.", author: "Confucius" },
+  { text: "Don't wish it were easier. Wish you were better.", author: "Jim Rohn" },
+  { text: "I fear not the man who has practiced 10,000 kicks once, but I fear the man who has practiced one kick 10,000 times.", author: "Bruce Lee" },
+  { text: "Your mind will quit a thousand times before your body will.", author: null },
+  { text: "The only limit to our realization of tomorrow is our doubts of today.", author: "Franklin D. Roosevelt" },
+  { text: "Sleep is for people who are broke.", author: "50 Cent" },
+  { text: "Obsessed is a word the lazy use to describe the dedicated.", author: null },
+  { text: "You're one decision away from a completely different life.", author: null },
+  { text: "Pain is temporary. Quitting lasts forever.", author: "Lance Armstrong" },
+  { text: "If you want something you've never had, you must be willing to do something you've never done.", author: "Thomas Jefferson" },
+  { text: "The grind includes days you don't feel like grinding.", author: null },
+  { text: "Excuses make today easy, but they make tomorrow harder.", author: null },
+  { text: "Done is better than perfect.", author: "Sheryl Sandberg" },
+  { text: "You don't have to be great to start, but you have to start to be great.", author: "Zig Ziglar" },
+  { text: "Go the extra mile. It's never crowded.", author: null },
+  { text: "Your GPA doesn't define you, but your work ethic will.", author: null },
+  { text: "The semester doesn't wait for you to be ready.", author: null },
+  { text: "Talent is cheaper than table salt. What separates the talented individual from the successful one is hard work.", author: "Stephen King" },
+  { text: "Procrastination is the thief of time.", author: "Charles Dickens" },
+  { text: "While you're overthinking, someone else is doing.", author: null },
+  { text: "Results happen over time, not overnight. Work hard, stay consistent, and be patient.", author: null },
+  { text: "The only person you should try to be better than is the person you were yesterday.", author: null },
+  { text: "Winners focus on winning. Losers focus on winners.", author: null },
+  { text: "It's not about having time. It's about making time.", author: null },
+  { text: "Your alarm clock doesn't care about your dreams.", author: null },
+  { text: "The magic you're looking for is in the work you're avoiding.", author: null },
+  { text: "Consistency beats intensity. Show up every day.", author: null },
+  { text: "A year from now, you'll wish you had started today.", author: "Karen Lamb" },
+  { text: "Stop waiting for the perfect moment. Take the moment and make it perfect.", author: null },
+  { text: "The only impossible journey is the one you never begin.", author: "Tony Robbins" },
+  { text: "Fall seven times, stand up eight.", author: "Japanese Proverb" },
+  { text: "What you do today can improve all your tomorrows.", author: "Ralph Marston" },
+  { text: "Champions aren't made in the gym. Champions are made from something deep inside them.", author: "Muhammad Ali" },
+  { text: "The successful warrior is the average man, with laser-like focus.", author: "Bruce Lee" },
+  { text: "If you're going through hell, keep going.", author: "Winston Churchill" },
+  { text: "Work until your idols become your rivals.", author: null },
+  { text: "Your comfort zone will kill your ambitions.", author: null },
+  { text: "You're not behind. You're just getting started.", author: null },
+  { text: "The discipline you build now is the freedom you earn later.", author: null },
+  { text: "Close the tab. Open the textbook.", author: null },
+  { text: "That assignment isn't going to write itself.", author: null },
+  { text: "Your degree is an investment. Treat it like one.", author: null },
+  { text: "Every hour wasted is a lecture you'll have to teach yourself later.", author: null },
+  { text: "Study like your future depends on it. Because it does.", author: null },
+  { text: "The library closes. Your ambition shouldn't.", author: null },
+  { text: "Berkeley doesn't hand out degrees. You earn them.", author: null },
+  { text: "The hardest part is sitting down and starting. Everything after that is momentum.", author: null },
+  { text: "Hustle in silence and let your success make the noise.", author: null },
+  { text: "The pain of discipline weighs ounces. The pain of regret weighs tons.", author: "Jim Rohn" },
+  { text: "Action is the foundational key to all success.", author: "Pablo Picasso" },
+  { text: "You miss 100% of the shots you don't take.", author: "Wayne Gretzky" },
+  { text: "Either you run the day, or the day runs you.", author: "Jim Rohn" },
+  { text: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius" },
+  { text: "Stay hungry, stay foolish.", author: "Steve Jobs" },
+  { text: "The question isn't who is going to let me; it's who is going to stop me.", author: "Ayn Rand" },
+  { text: "Do something today that your future self will thank you for.", author: null },
+  { text: "You are what you repeatedly do. Excellence is not an act, but a habit.", author: "Aristotle" },
+  { text: "The harder you work for something, the greater you'll feel when you achieve it.", author: null },
+  { text: "Don't be upset by the results you didn't get from the work you didn't do.", author: null },
+  { text: "Small daily improvements over time lead to stunning results.", author: "Robin Sharma" },
+  { text: "Outwork everyone in the room. Then find a bigger room.", author: null },
+  { text: "Your habits will determine your future.", author: "Jack Canfield" },
+  { text: "Stop making excuses for why you can't and start making reasons for why you can.", author: null },
+  { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
+  { text: "Lock in.", author: null },
+];
+
+const gradients = [
+  "from-blue-950/60 via-zinc-950 to-zinc-900",
+  "from-purple-950/50 via-zinc-950 to-zinc-900",
+  "from-emerald-950/40 via-zinc-950 to-zinc-900",
+  "from-rose-950/40 via-zinc-950 to-zinc-900",
+  "from-amber-950/40 via-zinc-950 to-zinc-900",
+  "from-cyan-950/40 via-zinc-950 to-zinc-900",
+];
+
+export function getGradient(index: number): string {
+  return gradients[index % gradients.length];
+}
+
+export function shuffleQuotes(): Quote[] {
+  const arr = [...quotes];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
