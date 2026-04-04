@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Settings, Sun, Moon, Timer, Trash2, Loader2, LogOut } from "lucide-react";
+import { Settings, Sun, Moon, Timer, Trash2, Loader2, LogOut, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { LIFE_AREAS, AREA_LABELS, type LifeArea, type Habit } from "@/lib/types";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -13,6 +14,7 @@ export default function SettingsPage() {
   const [pomBreak, setPomBreak] = useState(5);
   const [saving, setSaving] = useState(false);
   const [confirmWipe, setConfirmWipe] = useState(false);
+  const [habits, setHabits] = useState<(Habit & { mappings: { area: LifeArea; relevance: number }[] })[]>([]);
 
   const fetchSettings = useCallback(async () => {
     const res = await fetch("/api/settings");
@@ -26,7 +28,23 @@ export default function SettingsPage() {
     }
   }, []);
 
-  useEffect(() => { fetchSettings(); }, [fetchSettings]);
+  const fetchHabits = useCallback(async () => {
+    const [habitsRes, mappingsRes] = await Promise.all([
+      fetch("/api/habits"),
+      fetch("/api/growth/mappings"),
+    ]);
+    if (!habitsRes.ok) return;
+    const habitsData = await habitsRes.json();
+    const mappingsData = mappingsRes.ok ? await mappingsRes.json() : [];
+    setHabits(
+      habitsData.map((h: Habit) => ({
+        ...h,
+        mappings: (mappingsData || []).filter((m: any) => m.habit_id === h.id),
+      }))
+    );
+  }, []);
+
+  useEffect(() => { fetchSettings(); fetchHabits(); }, [fetchSettings, fetchHabits]);
 
   const save = async (updates: Record<string, unknown>) => {
     setSaving(true);
@@ -52,12 +70,21 @@ export default function SettingsPage() {
     await save({ pomodoro_work: work, pomodoro_break: brk });
   };
 
+  const toggleHabitArea = async (habitId: string, area: LifeArea, currentlyMapped: boolean) => {
+    const supabase = createClient();
+    if (currentlyMapped) {
+      await supabase.from("habit_area_mappings").delete().eq("habit_id", habitId).eq("area", area);
+    } else {
+      await supabase.from("habit_area_mappings").upsert({ habit_id: habitId, area, relevance: 0.5 }, { onConflict: "habit_id,area" });
+    }
+    fetchHabits();
+  };
+
   const wipeData = async () => {
     if (!confirmWipe) {
       setConfirmWipe(true);
       return;
     }
-    // Delete all user data via individual endpoints
     const endpoints = ["/api/habits", "/api/assignments"];
     for (const ep of endpoints) {
       const res = await fetch(ep);
@@ -88,9 +115,7 @@ export default function SettingsPage() {
             onClick={toggleTheme}
             className={cn(
               "flex-1 flex items-center justify-center gap-2 py-3 rounded-lg transition-all",
-              theme === "dark"
-                ? "border-2 border-white text-white"
-                : "border-2 border-white/20 text-white/30"
+              theme === "dark" ? "border-2 border-white text-white" : "border-2 border-white/20 text-white/30"
             )}
           >
             <Moon className="w-4 h-4" />
@@ -100,9 +125,7 @@ export default function SettingsPage() {
             onClick={toggleTheme}
             className={cn(
               "flex-1 flex items-center justify-center gap-2 py-3 rounded-lg transition-all",
-              theme === "light"
-                ? "border-2 border-white text-white"
-                : "border-2 border-white/20 text-white/30"
+              theme === "light" ? "border-2 border-white text-white" : "border-2 border-white/20 text-white/30"
             )}
           >
             <Sun className="w-4 h-4" />
@@ -110,6 +133,46 @@ export default function SettingsPage() {
           </button>
         </div>
       </div>
+
+      {/* Habit Category Management */}
+      {habits.length > 0 && (
+        <div className="border-2 border-white/20 rounded-lg p-4 space-y-4">
+          <div className="flex items-center gap-2">
+            <Tag className="w-4 h-4 text-white/40" />
+            <h3 className="text-base font-semibold text-white">Habit Categories</h3>
+          </div>
+          <p className="text-xs text-white/30">Tap areas to assign/unassign each habit.</p>
+          <div className="space-y-4">
+            {habits.map((habit) => {
+              const mappedAreas = new Set(habit.mappings.map((m) => m.area));
+              return (
+                <div key={habit.id} className="space-y-2">
+                  <p className="text-sm text-white/80">{habit.name}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {LIFE_AREAS.map((area) => {
+                      const isMapped = mappedAreas.has(area);
+                      return (
+                        <button
+                          key={area}
+                          onClick={() => toggleHabitArea(habit.id, area, isMapped)}
+                          className={cn(
+                            "text-[10px] px-2.5 py-1 rounded-lg border-2 transition-all",
+                            isMapped
+                              ? "border-white text-white bg-white/10"
+                              : "border-white/15 text-white/25 hover:border-white/30 hover:text-white/40"
+                          )}
+                        >
+                          {AREA_LABELS[area]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Pomodoro */}
       <div className="border-2 border-white/20 rounded-lg p-4 space-y-3">

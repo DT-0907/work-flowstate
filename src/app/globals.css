@@ -61,42 +61,16 @@
   --radius: 0.75rem;
 }
 
-/* Light mode */
-.light {
-  --background: oklch(0.985 0.002 247.858);
-  --foreground: oklch(0.141 0.005 285.823);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 285.823);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.623 0.209 259.815);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.92 0.004 264.376);
-  --secondary-foreground: oklch(0.205 0.006 285.885);
-  --muted: oklch(0.92 0.004 264.376);
-  --muted-foreground: oklch(0.553 0.013 285.938);
-  --accent: oklch(0.92 0.004 264.376);
-  --accent-foreground: oklch(0.205 0.006 285.885);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.87 0.006 286.033);
-  --input: oklch(0.87 0.006 286.033);
-  --ring: oklch(0.623 0.209 259.815);
+/* Light mode — simple CSS invert filter for the B&W Undertale aesthetic */
+html.light {
+  filter: invert(1);
 }
 
-.light .glass {
-  background: transparent;
-  border: 2px solid oklch(0 0 0 / 0.2);
-}
-
-.light .glass-strong {
-  background: transparent;
-  border: 2px solid oklch(0 0 0 / 0.3);
-}
-
-.light .glass-hover:hover {
-  background: oklch(0 0 0 / 0.05);
-  border-color: oklch(0 0 0 / 0.4);
+/* Un-invert images and videos so they look normal */
+html.light img,
+html.light video,
+html.light svg.no-invert {
+  filter: invert(1);
 }
 
 @layer base {
