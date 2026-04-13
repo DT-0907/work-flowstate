@@ -23,4 +23,9 @@ export async function ensureProfile(supabase: SupabaseClient, userId: string, em
   await supabase
     .from("user_settings")
     .upsert({ user_id: userId }, { onConflict: "user_id" });
+
+  // Ensure default assignment grouping exists
+  await supabase
+    .from("assignment_groupings")
+    .upsert({ user_id: userId, name: "Miscellaneous" }, { onConflict: "user_id,name" });
 }

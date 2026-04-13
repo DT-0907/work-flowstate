@@ -66,21 +66,12 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Cannot delete default grouping" }, { status: 400 });
   }
 
-  // Move assignments to Miscellaneous before deleting
-  const { data: misc } = await supabase
-    .from("assignment_groupings")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("name", "Miscellaneous")
-    .single();
-
-  if (misc) {
-    await supabase
-      .from("assignments")
-      .update({ group_id: misc.id })
-      .eq("group_id", id)
-      .eq("user_id", user.id);
-  }
+  // Delete all assignments in this grouping
+  await supabase
+    .from("assignments")
+    .delete()
+    .eq("group_id", id)
+    .eq("user_id", user.id);
 
   const { error } = await supabase
     .from("assignment_groupings")

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Assignment, AssignmentGrouping, AssignmentPriority } from "@/lib/types";
 import { AssignmentRow } from "./assignment-row";
-import { Plus, X, BookOpen, ChevronDown, ChevronRight, FolderPlus } from "lucide-react";
+import { Plus, X, BookOpen, ChevronDown, ChevronRight, FolderPlus, Trash2 } from "lucide-react";
 
 export function AssignmentList() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -19,6 +19,7 @@ export function AssignmentList() {
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
   const [repeatsWeekly, setRepeatsWeekly] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
+  const [confirmDeleteGroupId, setConfirmDeleteGroupId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     const res = await fetch("/api/assignments");
@@ -103,7 +104,8 @@ export function AssignmentList() {
   };
 
   const deleteGrouping = async (id: string) => {
-    await fetch(`/api/assignment-groupings?id=${id}`, { method: "DELETE" });
+    await fetch(`/api/assignment-groupings?id=${id}&delete_assignments=true`, { method: "DELETE" });
+    setConfirmDeleteGroupId(null);
     fetchData();
   };
 
@@ -274,27 +276,51 @@ export function AssignmentList() {
               const isExpanded = expandedGroups.has(group.id);
 
               return (
-                <div key={group.id}>
-                  <button
-                    onClick={() => toggleGroup(group.id)}
-                    className="w-full flex items-center gap-2 px-4 py-3 hover:bg-white/[0.03] transition-colors"
-                  >
-                    {isExpanded ? (
-                      <ChevronDown className="w-3.5 h-3.5 text-white/40" />
-                    ) : (
-                      <ChevronRight className="w-3.5 h-3.5 text-white/40" />
-                    )}
-                    <span className="text-sm font-medium text-white/80">{group.name}</span>
-                    <span className="text-[10px] font-mono text-white/30">{pendingCount}</span>
-                    {group.name !== "Miscellaneous" && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); deleteGrouping(group.id); }}
-                        className="ml-auto text-white/20 hover:text-white/60 opacity-0 group-hover:opacity-100"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
-                  </button>
+                <div key={group.id} className="group/grouping">
+                  {/* Confirmation overlay */}
+                  {confirmDeleteGroupId === group.id && (
+                    <div className="flex items-center justify-between px-4 py-3 bg-white/[0.05]">
+                      <span className="text-xs text-white/60">
+                        Delete &quot;{group.name}&quot; and all its assignments?
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => deleteGrouping(group.id)}
+                          className="text-[10px] px-2.5 py-1 rounded-md border border-red-400/40 text-red-400 hover:bg-red-400/10 transition-colors"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteGroupId(null)}
+                          className="text-[10px] px-2.5 py-1 rounded-md text-white/40 hover:text-white/60"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {confirmDeleteGroupId !== group.id && (
+                    <button
+                      onClick={() => toggleGroup(group.id)}
+                      className="w-full flex items-center gap-2 px-4 py-3 hover:bg-white/[0.03] transition-colors"
+                    >
+                      {isExpanded ? (
+                        <ChevronDown className="w-3.5 h-3.5 text-white/40" />
+                      ) : (
+                        <ChevronRight className="w-3.5 h-3.5 text-white/40" />
+                      )}
+                      <span className="text-sm font-medium text-white/80">{group.name}</span>
+                      <span className="text-[10px] font-mono text-white/30">{pendingCount}</span>
+                      {group.name !== "Miscellaneous" && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setConfirmDeleteGroupId(group.id); }}
+                          className="ml-auto opacity-0 group-hover/grouping:opacity-100 transition-opacity text-white/20 hover:text-white/60"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </button>
+                  )}
                   {isExpanded && (
                     <div className="px-4 pb-2">
                       {groupAssignments.length === 0 ? (

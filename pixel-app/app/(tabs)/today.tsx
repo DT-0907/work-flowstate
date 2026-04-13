@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   TextInput,
   Switch,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -23,6 +24,7 @@ import {
   createHabit,
   createAssignment,
   createGrouping,
+  deleteGrouping,
   completeHabit,
   uncompleteHabit,
   completeAssignment,
@@ -395,19 +397,38 @@ export default function TodayScreen() {
 
             return (
               <View key={group.id}>
-                <TouchableOpacity
-                  style={styles.groupHeader}
-                  onPress={() => toggleGroup(group.id)}
-                  activeOpacity={0.7}
-                >
-                  <Feather
-                    name={isExpanded ? "chevron-down" : "chevron-right"}
-                    size={16}
-                    color={colors.textMuted}
-                  />
-                  <Text style={styles.groupName}>{group.name}</Text>
-                  <Text style={styles.groupCount}>{pendingCount}</Text>
-                </TouchableOpacity>
+                <View style={styles.groupHeader}>
+                  <TouchableOpacity
+                    onPress={() => toggleGroup(group.id)}
+                    activeOpacity={0.7}
+                    style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, flex: 1 }}
+                  >
+                    <Feather
+                      name={isExpanded ? "chevron-down" : "chevron-right"}
+                      size={16}
+                      color={colors.textMuted}
+                    />
+                    <Text style={styles.groupName}>{group.name}</Text>
+                    <Text style={styles.groupCount}>{pendingCount}</Text>
+                  </TouchableOpacity>
+                  {group.name !== "Miscellaneous" && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        Alert.alert(
+                          "Delete Grouping",
+                          `Delete "${group.name}" and all its assignments?`,
+                          [
+                            { text: "Cancel", style: "cancel" },
+                            { text: "Delete", style: "destructive", onPress: async () => { await deleteGrouping(group.id); await loadData(); } },
+                          ]
+                        );
+                      }}
+                      style={{ padding: spacing.xs }}
+                    >
+                      <Feather name="trash-2" size={14} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
                 {isExpanded && (
                   <View style={styles.groupContent}>
                     {groupAssignments.length === 0 ? (

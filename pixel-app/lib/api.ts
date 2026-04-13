@@ -178,21 +178,12 @@ export async function deleteGrouping(id: string) {
   const user = await getCurrentUser();
   if (!user) return;
 
-  // Move assignments to Miscellaneous first
-  const { data: misc } = await supabase
-    .from("assignment_groupings")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("name", "Miscellaneous")
-    .single();
-
-  if (misc) {
-    await supabase
-      .from("assignments")
-      .update({ group_id: misc.id })
-      .eq("group_id", id)
-      .eq("user_id", user.id);
-  }
+  // Delete all assignments in this grouping
+  await supabase
+    .from("assignments")
+    .delete()
+    .eq("group_id", id)
+    .eq("user_id", user.id);
 
   await supabase.from("assignment_groupings").delete().eq("id", id);
 }
