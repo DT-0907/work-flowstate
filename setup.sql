@@ -16,6 +16,7 @@ drop table if exists user_settings cascade;
 drop table if exists skipped_recommendations cascade;
 drop table if exists habit_completions cascade;
 drop table if exists assignments cascade;
+drop table if exists assignment_groupings cascade;
 drop table if exists habits cascade;
 drop table if exists profiles cascade;
 drop type if exists time_of_day cascade;
@@ -68,9 +69,20 @@ create table habits (
   updated_at timestamptz default now()
 );
 
+create table assignment_groupings (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  name text not null,
+  course text default '',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique(user_id, name)
+);
+
 create table assignments (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references profiles(id) on delete cascade,
+  group_id uuid references assignment_groupings(id) on delete set null,
   name text not null,
   description text default '',
   course text default '',
@@ -78,6 +90,7 @@ create table assignments (
   estimated_minutes int not null default 60,
   priority assignment_priority default 'medium',
   status assignment_status default 'pending',
+  repeats_weekly boolean default false,
   completed_at timestamptz,
   embedding_text text,
   embedding vector(384),
@@ -163,6 +176,8 @@ create index habits_embedding_idx on habits
   using ivfflat (embedding vector_cosine_ops) with (lists = 20);
 create index assignments_embedding_idx on assignments
   using ivfflat (embedding vector_cosine_ops) with (lists = 20);
+create index assignment_groupings_user_idx on assignment_groupings (user_id);
+create index assignments_group_idx on assignments (group_id);
 create index habits_user_active_idx on habits (user_id, is_active);
 create index habits_user_time_idx on habits (user_id, time_of_day) where is_active = true;
 create index assignments_user_status_idx on assignments (user_id, status);
@@ -179,6 +194,7 @@ create index score_changes_user_idx on score_changes (user_id, created_at);
 -- ============================================================
 alter table profiles enable row level security;
 alter table habits enable row level security;
+alter table assignment_groupings enable row level security;
 alter table assignments enable row level security;
 alter table habit_completions enable row level security;
 alter table skipped_recommendations enable row level security;
@@ -198,6 +214,12 @@ create policy "own_habits_select" on habits for select using (auth.uid() = user_
 create policy "own_habits_insert" on habits for insert with check (auth.uid() = user_id);
 create policy "own_habits_update" on habits for update using (auth.uid() = user_id);
 create policy "own_habits_delete" on habits for delete using (auth.uid() = user_id);
+
+-- Assignment Groupings
+create policy "own_groupings_select" on assignment_groupings for select using (auth.uid() = user_id);
+create policy "own_groupings_insert" on assignment_groupings for insert with check (auth.uid() = user_id);
+create policy "own_groupings_update" on assignment_groupings for update using (auth.uid() = user_id);
+create policy "own_groupings_delete" on assignment_groupings for delete using (auth.uid() = user_id);
 
 -- Assignments
 create policy "own_assignments_select" on assignments for select using (auth.uid() = user_id);
@@ -257,6 +279,8 @@ begin
     (new.id, 'financial'), (new.id, 'physical'), (new.id, 'social');
   -- Initialize default settings
   insert into public.user_settings (user_id) values (new.id);
+  -- Initialize default assignment grouping
+  insert into public.assignment_groupings (user_id, name) values (new.id, 'Miscellaneous');
   return new;
 end;
 $$;
@@ -271,6 +295,7 @@ begin new.updated_at = now(); return new; end;
 $$;
 
 create trigger habits_updated_at before update on habits for each row execute function update_updated_at();
+create trigger groupings_updated_at before update on assignment_groupings for each row execute function update_updated_at();
 create trigger assignments_updated_at before update on assignments for each row execute function update_updated_at();
 create trigger profiles_updated_at before update on profiles for each row execute function update_updated_at();
 create trigger journal_updated_at before update on journal_entries for each row execute function update_updated_at();

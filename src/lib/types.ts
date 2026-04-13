@@ -334,9 +334,19 @@ export interface Habit {
   completed_today?: boolean;
 }
 
+export interface AssignmentGrouping {
+  id: string;
+  user_id: string;
+  name: string;
+  course: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Assignment {
   id: string;
   user_id: string;
+  group_id: string | null;
   name: string;
   description: string;
   course: string;
@@ -344,6 +354,7 @@ export interface Assignment {
   estimated_minutes: number;
   priority: AssignmentPriority;
   status: AssignmentStatus;
+  repeats_weekly: boolean;
   completed_at: string | null;
   embedding_text: string | null;
   created_at: string;

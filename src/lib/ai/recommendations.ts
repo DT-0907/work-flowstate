@@ -1,35 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import { generateEmbedding, buildContextEmbeddingText } from "./embeddings";
 import type { Recommendation, TimeOfDay } from "@/lib/types";
-import { anthropic } from "@ai-sdk/anthropic";
-import { generateText } from "ai";
-
-interface SlotDistribution {
-  habits: number;
-  assignments: number;
-}
-
-function getSlotDistribution(timeOfDay: TimeOfDay): SlotDistribution {
-  switch (timeOfDay) {
-    case "morning":
-      return { habits: 2, assignments: 1 };
-    case "midday":
-      return { habits: 1, assignments: 2 };
-    case "night":
-      return { habits: 1, assignments: 2 };
-  }
-}
-
-async function embedWithTimeout(text: string, ms = 15000): Promise<number[]> {
-  try {
-    return await Promise.race([
-      generateEmbedding(text),
-      new Promise<number[]>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
-    ]);
-  } catch {
-    return [];
-  }
-}
 
 export async function getRecommendations(
   userId: string,
@@ -37,209 +7,130 @@ export async function getRecommendations(
 ): Promise<Recommendation[]> {
   const supabase = await createServiceClient();
 
-  // Quick check: if user has no tasks, return empty immediately
-  const [hCount, aCount] = await Promise.all([
-    supabase.from("habits").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("is_active", true),
-    supabase.from("assignments").select("id", { count: "exact", head: true }).eq("user_id", userId).neq("status", "completed"),
-  ]);
-  if ((hCount.count || 0) === 0 && (aCount.count || 0) === 0) return [];
+  const today = new Date().toISOString().split("T")[0];
 
-  // Gather context for embedding
-  const [habitsRes, assignmentsRes, completionsRes] = await Promise.all([
+  // Fetch incomplete habits + today's completions
+  const [habitsRes, completionsRes, assignmentsRes] = await Promise.all([
     supabase
       .from("habits")
-      .select("name, streak")
+      .select("id, name, description, time_of_day, streak, completion_count")
       .eq("user_id", userId)
-      .eq("is_active", true)
-      .gt("streak", 3),
-    supabase
-      .from("assignments")
-      .select("name, due_date")
-      .eq("user_id", userId)
-      .neq("status", "completed")
-      .lte("due_date", new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString())
-      .order("due_date"),
+      .eq("is_active", true),
     supabase
       .from("habit_completions")
-      .select("habit_id, habits(name)")
+      .select("habit_id")
       .eq("user_id", userId)
-      .eq("completed_date", new Date().toISOString().split("T")[0]),
+      .eq("completed_date", today),
+    supabase
+      .from("assignments")
+      .select("id, name, description, course, due_date, estimated_minutes, priority")
+      .eq("user_id", userId)
+      .neq("status", "completed")
+      .order("due_date"),
   ]);
 
-  const upcomingAssignments = (assignmentsRes.data || []).map(
-    (a) => `${a.name} (due ${new Date(a.due_date).toLocaleDateString("en-US", { weekday: "short" })})`
-  );
-  const activeStreaks = (habitsRes.data || []).map((h) => `${h.name} (${h.streak}d streak)`);
-  const completedToday = (completionsRes.data || []).map(
-    (c: any) => c.habits?.name || "unknown"
-  );
+  const habits = habitsRes.data || [];
+  const completedIds = new Set((completionsRes.data || []).map((c) => c.habit_id));
+  const assignments = assignmentsRes.data || [];
 
-  // Build context embedding
-  const contextText = buildContextEmbeddingText(timeOfDay, upcomingAssignments, activeStreaks, completedToday);
-  const contextEmbedding = await embedWithTimeout(contextText);
+  // Filter to incomplete habits
+  const availableHabits = habits.filter((h) => !completedIds.has(h.id));
 
-  // If embedding failed, use Claude fallback directly
-  if (contextEmbedding.length === 0) {
-    return claudeFallback(userId, timeOfDay, supabase);
+  if (availableHabits.length === 0 && assignments.length === 0) return [];
+
+  // Score habits: time_of_day match + streak preservation + newer habits bonus
+  const scoredHabits = availableHabits.map((h) => {
+    let score = 0;
+    if (h.time_of_day === timeOfDay) score += 3;
+    if (h.streak > 0) score += 2 + Math.min(h.streak * 0.1, 1); // protect streaks
+    if (h.completion_count < 10) score += 1; // boost newer habits
+    return { ...h, score };
+  });
+  scoredHabits.sort((a, b) => b.score - a.score);
+
+  // Score assignments: urgency + priority
+  const priorityWeight: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
+  const scoredAssignments = assignments.map((a) => {
+    const hoursLeft = (new Date(a.due_date).getTime() - Date.now()) / (1000 * 60 * 60);
+    const urgency = hoursLeft < 0 ? 5 : hoursLeft < 24 ? 4 : hoursLeft < 72 ? 3 : hoursLeft < 168 ? 1.5 : 0.5;
+    return { ...a, score: urgency + (priorityWeight[a.priority] || 1) };
+  });
+  scoredAssignments.sort((a, b) => b.score - a.score);
+
+  const results: Recommendation[] = [];
+
+  // Always: top 2 habits
+  for (const h of scoredHabits.slice(0, 2)) {
+    results.push({
+      id: h.id,
+      name: h.name,
+      type: "habit",
+      description: h.description,
+      time_of_day: h.time_of_day,
+      streak: h.streak,
+      reason: h.streak > 0
+        ? `${h.streak} day streak — keep it going`
+        : h.time_of_day === timeOfDay
+          ? `Good ${timeOfDay} habit`
+          : "Build a new streak",
+    });
   }
 
-  const distribution = getSlotDistribution(timeOfDay);
-
-  // Query habits and assignments via RPC
-  const [habitMatches, assignmentMatches] = await Promise.all([
-    supabase.rpc("match_habits", {
-      query_embedding: JSON.stringify(contextEmbedding),
-      match_threshold: 0.1,
-      match_count: distribution.habits + 3,
-      p_user_id: userId,
-      p_time_of_day: timeOfDay,
-    }),
-    supabase.rpc("match_assignments", {
-      query_embedding: JSON.stringify(contextEmbedding),
-      match_threshold: 0.1,
-      match_count: distribution.assignments + 3,
-      p_user_id: userId,
-    }),
-  ]);
-
-  const habits: Recommendation[] = (habitMatches.data || []).map((h: any) => ({
-    id: h.id,
-    name: h.name,
-    type: "habit" as const,
-    description: h.description,
-    time_of_day: h.time_of_day,
-    streak: h.streak,
-    similarity: h.similarity,
-    final_score:
-      0.35 * (h.similarity || 0) +
-      0.3 * 0.5 +
-      0.2 * Math.min((h.streak || 0) / 30, 1) +
-      0.15 * 0.5,
-  }));
-
-  const assignments: Recommendation[] = (assignmentMatches.data || []).map((a: any) => {
-    const urgencyNormalized = Math.min((a.urgency_score || 0) / 2, 1);
-    return {
+  // Always: top 1 assignment
+  for (const a of scoredAssignments.slice(0, 1)) {
+    const hoursLeft = (new Date(a.due_date).getTime() - Date.now()) / (1000 * 60 * 60);
+    results.push({
       id: a.id,
       name: a.name,
-      type: "assignment" as const,
+      type: "assignment",
       description: a.description,
       course: a.course,
       due_date: a.due_date,
       estimated_minutes: a.estimated_minutes,
       priority: a.priority,
-      similarity: a.similarity,
-      urgency_score: a.urgency_score,
-      final_score:
-        0.35 * (a.similarity || 0) +
-        0.3 * urgencyNormalized +
-        0.2 * 0 +
-        0.15 * 0.5,
-    };
-  });
-
-  // Sort each by final score
-  habits.sort((a, b) => (b.final_score || 0) - (a.final_score || 0));
-  assignments.sort((a, b) => (b.final_score || 0) - (a.final_score || 0));
-
-  // Fill slots by distribution
-  const results: Recommendation[] = [];
-  const habitSlots = habits.slice(0, distribution.habits);
-  const assignmentSlots = assignments.slice(0, distribution.assignments);
-  results.push(...habitSlots, ...assignmentSlots);
-
-  // If we don't have 3, fill from the other type
-  if (results.length < 3) {
-    const remaining = 3 - results.length;
-    const extraHabits = habits.slice(distribution.habits);
-    const extraAssignments = assignments.slice(distribution.assignments);
-    const extras = [...extraHabits, ...extraAssignments]
-      .sort((a, b) => (b.final_score || 0) - (a.final_score || 0))
-      .slice(0, remaining);
-    results.push(...extras);
+      reason: hoursLeft < 0
+        ? "Overdue!"
+        : hoursLeft < 24
+          ? "Due today"
+          : `Due ${new Date(a.due_date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}`,
+    });
   }
 
-  // If still under 3, try Claude fallback
+  // Fill remaining if we don't have 3
   if (results.length < 3) {
-    const fallback = await claudeFallback(userId, timeOfDay, supabase);
-    // Merge without duplicates
-    for (const fb of fallback) {
-      if (results.length >= 3) break;
-      if (!results.find((r) => r.id === fb.id)) {
-        results.push(fb);
+    const usedIds = new Set(results.map((r) => r.id));
+    const remaining = 3 - results.length;
+    const extras = [
+      ...scoredHabits.filter((h) => !usedIds.has(h.id)),
+      ...scoredAssignments.filter((a) => !usedIds.has(a.id)),
+    ].sort((a, b) => b.score - a.score);
+
+    for (const item of extras.slice(0, remaining)) {
+      if ("time_of_day" in item) {
+        results.push({
+          id: item.id,
+          name: item.name,
+          type: "habit",
+          description: item.description,
+          time_of_day: item.time_of_day,
+          streak: item.streak,
+          reason: "Suggested for you",
+        });
+      } else {
+        results.push({
+          id: item.id,
+          name: item.name,
+          type: "assignment",
+          description: item.description,
+          course: item.course,
+          due_date: item.due_date,
+          estimated_minutes: item.estimated_minutes,
+          priority: item.priority,
+          reason: "Suggested for you",
+        });
       }
     }
   }
 
   return results.slice(0, 3);
-}
-
-async function claudeFallback(
-  userId: string,
-  timeOfDay: TimeOfDay,
-  supabase: any
-): Promise<Recommendation[]> {
-  try {
-    // Fetch all active habits and pending assignments
-    const [habitsRes, assignmentsRes] = await Promise.all([
-      supabase
-        .from("habits")
-        .select("id, name, description, time_of_day, streak")
-        .eq("user_id", userId)
-        .eq("is_active", true),
-      supabase
-        .from("assignments")
-        .select("id, name, description, course, due_date, estimated_minutes, priority")
-        .eq("user_id", userId)
-        .neq("status", "completed")
-        .order("due_date"),
-    ]);
-
-    const habits = habitsRes.data || [];
-    const assignments = assignmentsRes.data || [];
-
-    if (habits.length === 0 && assignments.length === 0) return [];
-
-    const now = new Date();
-    const prompt = `You are a productivity assistant for a busy college student. It's currently ${timeOfDay} on ${now.toLocaleDateString("en-US", { weekday: "long" })}.
-
-Here are their active habits:
-${habits.map((h: any) => `- [${h.id}] "${h.name}" (${h.time_of_day}, streak: ${h.streak}d)`).join("\n")}
-
-Here are their pending assignments:
-${assignments.map((a: any) => `- [${a.id}] "${a.name}" for ${a.course} (due: ${a.due_date}, est: ${a.estimated_minutes}min, priority: ${a.priority})`).join("\n")}
-
-Pick exactly 3 tasks they should do right now. Return ONLY a JSON array of objects with "id", "type" ("habit" or "assignment"), and "reason" (one short sentence). No other text.`;
-
-    const result = await generateText({
-      model: anthropic("claude-sonnet-4-6"),
-      prompt,
-      maxOutputTokens: 300,
-    });
-
-    const parsed = JSON.parse(result.text);
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed.slice(0, 3).map((item: any) => {
-      const habit = habits.find((h: any) => h.id === item.id);
-      const assignment = assignments.find((a: any) => a.id === item.id);
-      const source = habit || assignment;
-      return {
-        id: item.id,
-        name: source?.name || "Unknown",
-        type: item.type,
-        description: source?.description,
-        course: assignment?.course,
-        due_date: assignment?.due_date,
-        estimated_minutes: assignment?.estimated_minutes,
-        priority: assignment?.priority,
-        time_of_day: habit?.time_of_day,
-        streak: habit?.streak,
-        reason: item.reason,
-      };
-    });
-  } catch (error) {
-    console.error("Claude fallback failed:", error);
-    return [];
-  }
 }
