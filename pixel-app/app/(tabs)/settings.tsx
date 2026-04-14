@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { colors, fontSize, spacing, borderRadius } from "@/lib/theme";
-import { fetchSettings, updateSettings, signOut } from "@/lib/api";
+import { fetchSettings, updateSettings, createHabit, signOut } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import type { UserSettings } from "@/lib/types";
@@ -25,6 +25,8 @@ export default function SettingsScreen() {
   });
   const [workInput, setWorkInput] = useState("25");
   const [breakInput, setBreakInput] = useState("5");
+  const [bulkInput, setBulkInput] = useState("");
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     fetchSettings().then((s) => {
@@ -39,6 +41,31 @@ export default function SettingsScreen() {
     const brk = parseInt(breakInput) || 5;
     await updateSettings({ pomodoro_work: work, pomodoro_break: brk });
     setSettings((s) => ({ ...s, pomodoro_work: work, pomodoro_break: brk }));
+  };
+
+  const handleBulkImport = async () => {
+    if (!bulkInput.trim()) return;
+    setImporting(true);
+    const parts = bulkInput.split(",").map((s) => s.trim()).filter(Boolean);
+    const validTimes = ["morning", "midday", "night"] as const;
+    let added = 0;
+    let errors = 0;
+
+    for (let i = 0; i < parts.length; i += 2) {
+      const name = parts[i];
+      const timeOfDay = parts[i + 1]?.toLowerCase();
+      if (!name || !validTimes.includes(timeOfDay as any)) {
+        errors++;
+        continue;
+      }
+      const result = await createHabit({ name, time_of_day: timeOfDay as any, frequency: "daily" });
+      if (result) added++;
+      else errors++;
+    }
+
+    setImporting(false);
+    setBulkInput("");
+    Alert.alert("Import Complete", `Added ${added} habit${added !== 1 ? "s" : ""}${errors > 0 ? `, ${errors} failed` : ""}`);
   };
 
   const handleSignOut = () => {
@@ -104,6 +131,35 @@ export default function SettingsScreen() {
             <View style={styles.row}>
               <Feather name="mail" size={18} color={colors.textSecondary} />
               <Text style={styles.rowText}>{user?.email || "—"}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Mass Add Habits */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Mass Add Habits</Text>
+          <View style={styles.card}>
+            <View style={{ padding: spacing.lg, gap: spacing.sm }}>
+              <Text style={{ fontSize: fontSize.xs, color: colors.textMuted }}>
+                CSV format: habit, time, habit, time, ...{"\n"}
+                Time: morning, midday, or night
+              </Text>
+              <TextInput
+                style={[styles.numberInput, { width: "100%", textAlign: "left", minHeight: 60 }]}
+                value={bulkInput}
+                onChangeText={setBulkInput}
+                placeholder="pills, night, meditation, morning"
+                placeholderTextColor={colors.textMuted}
+                multiline
+              />
+              <TouchableOpacity
+                onPress={handleBulkImport}
+                disabled={importing || !bulkInput.trim()}
+                style={[styles.signOutButton, { opacity: importing || !bulkInput.trim() ? 0.3 : 1 }]}
+              >
+                <Feather name="upload" size={16} color={colors.text} />
+                <Text style={styles.signOutText}>{importing ? "Importing..." : "Import Habits"}</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>

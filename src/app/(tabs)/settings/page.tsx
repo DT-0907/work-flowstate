@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Settings, Sun, Moon, Timer, Trash2, Loader2, LogOut, Tag } from "lucide-react";
+import { Settings, Sun, Moon, Timer, Trash2, Loader2, LogOut, Tag, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { LIFE_AREAS, AREA_LABELS, type LifeArea, type Habit } from "@/lib/types";
@@ -15,6 +15,9 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [confirmWipe, setConfirmWipe] = useState(false);
   const [habits, setHabits] = useState<(Habit & { mappings: { area: LifeArea; relevance: number }[] })[]>([]);
+  const [bulkInput, setBulkInput] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState("");
 
   const fetchSettings = useCallback(async () => {
     const res = await fetch("/api/settings");
@@ -80,6 +83,37 @@ export default function SettingsPage() {
     fetchHabits();
   };
 
+  const bulkImportHabits = async () => {
+    if (!bulkInput.trim()) return;
+    setImporting(true);
+    setImportResult("");
+    const parts = bulkInput.split(",").map((s) => s.trim()).filter(Boolean);
+    const validTimes = ["morning", "midday", "night"];
+    let added = 0;
+    let errors = 0;
+
+    for (let i = 0; i < parts.length; i += 2) {
+      const name = parts[i];
+      const timeOfDay = parts[i + 1]?.toLowerCase();
+      if (!name || !validTimes.includes(timeOfDay)) {
+        errors++;
+        continue;
+      }
+      const res = await fetch("/api/habits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, time_of_day: timeOfDay, frequency: "daily" }),
+      });
+      if (res.ok) added++;
+      else errors++;
+    }
+
+    setImporting(false);
+    setImportResult(`Added ${added} habit${added !== 1 ? "s" : ""}${errors > 0 ? `, ${errors} failed` : ""}`);
+    setBulkInput("");
+    fetchHabits();
+  };
+
   const wipeData = async () => {
     if (!confirmWipe) {
       setConfirmWipe(true);
@@ -131,6 +165,37 @@ export default function SettingsPage() {
             <Sun className="w-4 h-4" />
             <span className="text-sm">Light</span>
           </button>
+        </div>
+      </div>
+
+      {/* Bulk Import Habits */}
+      <div className="border-2 border-white/20 rounded-lg p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Upload className="w-4 h-4 text-white/40" />
+          <h3 className="text-base font-semibold text-white">Mass Add Habits</h3>
+        </div>
+        <p className="text-xs text-white/30">
+          Paste habits in CSV format: <span className="font-mono text-white/50">habit, time, habit, time, ...</span>
+          <br />
+          Time must be <span className="font-mono text-white/50">morning</span>, <span className="font-mono text-white/50">midday</span>, or <span className="font-mono text-white/50">night</span>
+        </p>
+        <textarea
+          value={bulkInput}
+          onChange={(e) => setBulkInput(e.target.value)}
+          placeholder="pills, night, meditation, morning, read, night, exercise, morning"
+          rows={3}
+          className="w-full bg-transparent text-sm text-white placeholder:text-white/20 px-3 py-2 rounded-lg outline-none border-2 border-white/20 focus:border-white/50 resize-none font-mono"
+        />
+        <div className="flex items-center gap-3">
+          <button
+            onClick={bulkImportHabits}
+            disabled={importing || !bulkInput.trim()}
+            className="flex items-center gap-2 text-xs px-4 py-2 rounded-lg border-2 border-white/30 text-white hover:bg-white hover:text-black transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            {importing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+            {importing ? "Importing..." : "Import"}
+          </button>
+          {importResult && <span className="text-xs text-white/50">{importResult}</span>}
         </div>
       </div>
 

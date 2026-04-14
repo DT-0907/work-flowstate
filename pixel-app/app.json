@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "scheme": "flowstate",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "backgroundColor": "#000000"
     },
