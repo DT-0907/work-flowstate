@@ -53,6 +53,7 @@ export default function TodayScreen() {
   const [newGroupName, setNewGroupName] = useState("");
 
   const loadData = useCallback(async () => {
+    try {
     const [h, a, g, r, s] = await Promise.all([
       fetchHabits(),
       fetchAssignments(),
@@ -72,6 +73,9 @@ export default function TodayScreen() {
     });
     if (!selectedGroupId && g.length > 0) {
       setSelectedGroupId(g[0].id);
+    }
+    } catch (e) {
+      console.warn("Failed to load data:", e);
     }
   }, [selectedGroupId]);
 
