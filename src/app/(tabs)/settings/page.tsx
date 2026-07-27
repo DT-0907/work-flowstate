@@ -2,9 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Settings, Sun, Moon, Timer, Trash2, Loader2, LogOut, Tag, Upload } from "lucide-react";
+import { Settings, Sun, Moon, Timer, Trash2, Loader2, LogOut, Tag, Upload, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import {
+  fetchUsername,
+  setUsername as saveUsername,
+  setPassword as savePassword,
+} from "@/lib/supabase/credentials";
 import { LIFE_AREAS, AREA_LABELS, type LifeArea, type Habit } from "@/lib/types";
 
 export default function SettingsPage() {
@@ -18,6 +23,15 @@ export default function SettingsPage() {
   const [bulkInput, setBulkInput] = useState("");
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState("");
+
+  // Username + password credentials
+  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
+  const [usernameInput, setUsernameInput] = useState("");
+  const [passwordInput, setPasswordInput] = useState("");
+  const [confirmInput, setConfirmInput] = useState("");
+  const [credError, setCredError] = useState("");
+  const [credStatus, setCredStatus] = useState("");
+  const [savingCreds, setSavingCreds] = useState(false);
 
   const fetchSettings = useCallback(async () => {
     const res = await fetch("/api/settings");
@@ -48,6 +62,58 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => { fetchSettings(); fetchHabits(); }, [fetchSettings, fetchHabits]);
+
+  useEffect(() => {
+    fetchUsername().then((u) => {
+      setCurrentUsername(u);
+      setUsernameInput(u ?? "");
+    });
+  }, []);
+
+  const saveCredentials = async () => {
+    const wantsUsername = usernameInput.trim() !== (currentUsername ?? "");
+    const wantsPassword = passwordInput.length > 0;
+
+    if (!wantsUsername && !wantsPassword) return;
+    if (wantsPassword && passwordInput !== confirmInput) {
+      setCredError("Passwords do not match.");
+      return;
+    }
+
+    setSavingCreds(true);
+    setCredError("");
+    setCredStatus("");
+
+    if (wantsUsername) {
+      const { error } = await saveUsername(usernameInput);
+      if (error) {
+        setCredError(error);
+        setSavingCreds(false);
+        return;
+      }
+      setCurrentUsername(usernameInput.trim());
+    }
+
+    if (wantsPassword) {
+      const { error } = await savePassword(passwordInput);
+      if (error) {
+        setCredError(error);
+        setSavingCreds(false);
+        return;
+      }
+      setPasswordInput("");
+      setConfirmInput("");
+    }
+
+    setSavingCreds(false);
+    setCredStatus(
+      wantsUsername && wantsPassword
+        ? "Username and password saved."
+        : wantsUsername
+          ? "Username saved."
+          : "Password saved."
+    );
+  };
 
   const save = async (updates: Record<string, unknown>) => {
     setSaving(true);
@@ -284,6 +350,71 @@ export default function SettingsPage() {
               {w}/{b}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Username & Password */}
+      <div className="border-2 border-white/20 rounded-lg p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <KeyRound className="w-4 h-4 text-white/40" />
+          <h3 className="text-base font-semibold text-white">Username &amp; Password</h3>
+        </div>
+        <p className="text-xs text-white/30">
+          Set a username and password to sign in without Google.
+          {currentUsername && (
+            <> Current username: <span className="font-mono text-white/60">{currentUsername}</span></>
+          )}
+        </p>
+
+        <div className="grid sm:grid-cols-3 gap-3">
+          <div>
+            <label className="text-[10px] text-white/30 uppercase tracking-wider">Username</label>
+            <input
+              type="text"
+              value={usernameInput}
+              onChange={(e) => { setUsernameInput(e.target.value); setCredError(""); setCredStatus(""); }}
+              placeholder="3-24 chars"
+              autoComplete="username"
+              className="w-full bg-transparent text-sm text-white placeholder:text-white/20 px-3 py-2 rounded-lg outline-none border-2 border-white/20 focus:border-white/50 mt-1 font-mono"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] text-white/30 uppercase tracking-wider">
+              {currentUsername ? "New password" : "Password"}
+            </label>
+            <input
+              type="password"
+              value={passwordInput}
+              onChange={(e) => { setPasswordInput(e.target.value); setCredError(""); setCredStatus(""); }}
+              placeholder="8+ chars"
+              autoComplete="new-password"
+              className="w-full bg-transparent text-sm text-white placeholder:text-white/20 px-3 py-2 rounded-lg outline-none border-2 border-white/20 focus:border-white/50 mt-1 font-mono"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] text-white/30 uppercase tracking-wider">Confirm</label>
+            <input
+              type="password"
+              value={confirmInput}
+              onChange={(e) => { setConfirmInput(e.target.value); setCredError(""); setCredStatus(""); }}
+              placeholder="Repeat password"
+              autoComplete="new-password"
+              className="w-full bg-transparent text-sm text-white placeholder:text-white/20 px-3 py-2 rounded-lg outline-none border-2 border-white/20 focus:border-white/50 mt-1 font-mono"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={saveCredentials}
+            disabled={savingCreds}
+            className="flex items-center gap-2 text-xs px-4 py-2 rounded-lg border-2 border-white/30 text-white hover:bg-white hover:text-black transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            {savingCreds ? <Loader2 className="w-3 h-3 animate-spin" /> : <KeyRound className="w-3 h-3" />}
+            {savingCreds ? "Saving..." : "Save credentials"}
+          </button>
+          {credError && <span className="text-xs text-red-400/80">{credError}</span>}
+          {credStatus && <span className="text-xs text-green-400/80">{credStatus}</span>}
         </div>
       </div>
 

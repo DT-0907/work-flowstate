@@ -11,7 +11,15 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { colors, fontSize, spacing, borderRadius } from "@/lib/theme";
-import { fetchSettings, updateSettings, createHabit, signOut } from "@/lib/api";
+import {
+  fetchSettings,
+  updateSettings,
+  createHabit,
+  signOut,
+  fetchUsername,
+  setUsername as saveUsername,
+  setPassword as savePassword,
+} from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import type { UserSettings } from "@/lib/types";
@@ -28,13 +36,71 @@ export default function SettingsScreen() {
   const [bulkInput, setBulkInput] = useState("");
   const [importing, setImporting] = useState(false);
 
+  // Username + password credentials
+  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
+  const [usernameInput, setUsernameInput] = useState("");
+  const [passwordInput, setPasswordInput] = useState("");
+  const [confirmInput, setConfirmInput] = useState("");
+  const [credError, setCredError] = useState("");
+  const [credStatus, setCredStatus] = useState("");
+  const [savingCreds, setSavingCreds] = useState(false);
+
   useEffect(() => {
     fetchSettings().then((s) => {
       setSettings(s);
       setWorkInput(String(s.pomodoro_work));
       setBreakInput(String(s.pomodoro_break));
     });
+    fetchUsername().then((u) => {
+      setCurrentUsername(u);
+      setUsernameInput(u ?? "");
+    });
   }, []);
+
+  const handleSaveCredentials = async () => {
+    const wantsUsername = usernameInput.trim() !== (currentUsername ?? "");
+    const wantsPassword = passwordInput.length > 0;
+
+    if (!wantsUsername && !wantsPassword) return;
+    if (wantsPassword && passwordInput !== confirmInput) {
+      setCredError("Passwords do not match.");
+      return;
+    }
+
+    setSavingCreds(true);
+    setCredError("");
+    setCredStatus("");
+
+    if (wantsUsername) {
+      const { error } = await saveUsername(usernameInput);
+      if (error) {
+        setCredError(error);
+        setSavingCreds(false);
+        return;
+      }
+      setCurrentUsername(usernameInput.trim());
+    }
+
+    if (wantsPassword) {
+      const { error } = await savePassword(passwordInput);
+      if (error) {
+        setCredError(error);
+        setSavingCreds(false);
+        return;
+      }
+      setPasswordInput("");
+      setConfirmInput("");
+    }
+
+    setSavingCreds(false);
+    setCredStatus(
+      wantsUsername && wantsPassword
+        ? "Username and password saved."
+        : wantsUsername
+          ? "Username saved."
+          : "Password saved."
+    );
+  };
 
   const handleSavePomodoro = async () => {
     const work = parseInt(workInput) || 25;
@@ -131,6 +197,95 @@ export default function SettingsScreen() {
             <View style={styles.row}>
               <Feather name="mail" size={18} color={colors.textSecondary} />
               <Text style={styles.rowText}>{user?.email || "—"}</Text>
+            </View>
+            <View style={styles.row}>
+              <Feather name="at-sign" size={18} color={colors.textSecondary} />
+              <Text style={styles.rowText}>{currentUsername || "No username set"}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Username + Password */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Username & Password</Text>
+          <View style={styles.card}>
+            <View style={{ padding: spacing.lg, gap: spacing.md }}>
+              <Text style={{ fontSize: fontSize.xs, color: colors.textMuted }}>
+                Set a username and password to sign in without Google.
+              </Text>
+
+              <View style={{ gap: spacing.xs }}>
+                <Text style={styles.fieldLabel}>Username</Text>
+                <TextInput
+                  style={styles.textField}
+                  value={usernameInput}
+                  onChangeText={(t) => {
+                    setUsernameInput(t);
+                    setCredError("");
+                    setCredStatus("");
+                  }}
+                  placeholder="3-24 letters, numbers, or _"
+                  placeholderTextColor={colors.textMuted}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+
+              <View style={{ gap: spacing.xs }}>
+                <Text style={styles.fieldLabel}>
+                  {currentUsername ? "New password" : "Password"}
+                </Text>
+                <TextInput
+                  style={styles.textField}
+                  value={passwordInput}
+                  onChangeText={(t) => {
+                    setPasswordInput(t);
+                    setCredError("");
+                    setCredStatus("");
+                  }}
+                  placeholder="At least 8 characters"
+                  placeholderTextColor={colors.textMuted}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  secureTextEntry
+                />
+              </View>
+
+              <View style={{ gap: spacing.xs }}>
+                <Text style={styles.fieldLabel}>Confirm password</Text>
+                <TextInput
+                  style={styles.textField}
+                  value={confirmInput}
+                  onChangeText={(t) => {
+                    setConfirmInput(t);
+                    setCredError("");
+                    setCredStatus("");
+                  }}
+                  placeholder="Repeat password"
+                  placeholderTextColor={colors.textMuted}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  secureTextEntry
+                />
+              </View>
+
+              {credError ? (
+                <Text style={{ fontSize: fontSize.xs, color: colors.red }}>{credError}</Text>
+              ) : null}
+              {credStatus ? (
+                <Text style={{ fontSize: fontSize.xs, color: colors.green }}>{credStatus}</Text>
+              ) : null}
+
+              <TouchableOpacity
+                onPress={handleSaveCredentials}
+                disabled={savingCreds}
+                style={[styles.signOutButton, { opacity: savingCreds ? 0.3 : 1 }]}
+              >
+                <Feather name="save" size={16} color={colors.text} />
+                <Text style={styles.signOutText}>
+                  {savingCreds ? "Saving..." : "Save Credentials"}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -261,6 +416,22 @@ const styles = StyleSheet.create({
     borderColor: colors.glassBorder,
   },
   divider: { height: 0.5, backgroundColor: colors.glassBorder },
+  fieldLabel: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  textField: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    color: colors.text,
+    fontSize: fontSize.md,
+    borderWidth: 0.5,
+    borderColor: colors.glassBorder,
+  },
   signOutButton: {
     flexDirection: "row",
     alignItems: "center",

@@ -312,6 +312,7 @@ export interface Profile {
   id: string;
   display_name: string | null;
   email: string | null;
+  username: string | null;
   timezone: string;
   created_at: string;
   updated_at: string;

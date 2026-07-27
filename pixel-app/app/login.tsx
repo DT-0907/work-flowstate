@@ -2,19 +2,38 @@ import { useState } from "react";
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session";
 import { supabase } from "@/lib/supabase";
-import { colors, fontSize, spacing } from "@/lib/theme";
+import { signInWithUsername } from "@/lib/api";
+import { colors, fontSize, spacing, borderRadius } from "@/lib/theme";
 
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
+  const [showCredentials, setShowCredentials] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [signingIn, setSigningIn] = useState(false);
+
+  const handleCredentialLogin = async () => {
+    if (!username.trim() || !password) return;
+    setSigningIn(true);
+    setError("");
+    const { error } = await signInWithUsername(username, password);
+    if (error) setError(error);
+    setSigningIn(false);
+  };
 
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -62,32 +81,104 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Hero text */}
-      <View style={styles.hero}>
-        <Text style={styles.heroText}>Work</Text>
-        <Text style={styles.subtitle}>Building your workflow</Text>
-      </View>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Hero text */}
+        <View style={styles.hero}>
+          <Text style={styles.heroText}>Work</Text>
+          <Text style={styles.subtitle}>Building your workflow</Text>
+        </View>
 
-      {/* Bottom section */}
-      <View style={styles.bottom}>
-        <TouchableOpacity
-          style={[styles.googleButton, loading && styles.googleButtonDisabled]}
-          onPress={handleGoogleLogin}
-          disabled={loading}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.googleIcon}>G</Text>
-          <Text style={styles.googleText}>
-            {loading ? "Signing in..." : "Continue with Google"}
+        {/* Bottom section */}
+        <View style={styles.bottom}>
+          {showCredentials && (
+            <View style={styles.form}>
+              <TextInput
+                style={styles.input}
+                value={username}
+                onChangeText={(t) => {
+                  setUsername(t);
+                  setError("");
+                }}
+                placeholder="username"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="username"
+                returnKeyType="next"
+              />
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={(t) => {
+                  setPassword(t);
+                  setError("");
+                }}
+                placeholder="password"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="password"
+                secureTextEntry
+                returnKeyType="go"
+                onSubmitEditing={handleCredentialLogin}
+              />
+
+              {error ? <Text style={styles.error}>{error}</Text> : null}
+
+              <TouchableOpacity
+                style={[
+                  styles.primaryButton,
+                  (signingIn || !username.trim() || !password) && styles.buttonDisabled,
+                ]}
+                onPress={handleCredentialLogin}
+                disabled={signingIn || !username.trim() || !password}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {signingIn ? "Signing in..." : "Sign In"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.googleButton, loading && styles.buttonDisabled]}
+            onPress={handleGoogleLogin}
+            disabled={loading}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.googleIcon}>G</Text>
+            <Text style={styles.googleText}>
+              {loading ? "Signing in..." : "Continue with Google"}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => {
+              setShowCredentials((v) => !v);
+              setError("");
+            }}
+            activeOpacity={0.6}
+          >
+            <Text style={styles.toggleText}>
+              {showCredentials ? "Hide username sign in" : "Sign in with username"}
+            </Text>
+          </TouchableOpacity>
+
+          <Text style={styles.tagline}>
+            WORKFLOW, ORGANIZATION, RESULTS, KNOWLEDGE
           </Text>
-        </TouchableOpacity>
-
-        <Text style={styles.tagline}>
-          WORKFLOW, ORGANIZATION, RESULTS, KNOWLEDGE
-        </Text>
-      </View>
-    </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -95,6 +186,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: "space-between",
     paddingHorizontal: spacing.xxl,
   },
@@ -102,6 +196,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    paddingVertical: spacing.xxxl,
   },
   heroText: {
     fontSize: 80,
@@ -131,8 +226,45 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.text,
   },
-  googleButtonDisabled: {
-    opacity: 0.5,
+  buttonDisabled: {
+    opacity: 0.4,
+  },
+  form: {
+    width: "100%",
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  input: {
+    backgroundColor: colors.glass,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 14,
+    color: colors.text,
+    fontSize: fontSize.md,
+  },
+  error: {
+    color: colors.red,
+    fontSize: fontSize.xs,
+    textAlign: "center",
+  },
+  primaryButton: {
+    alignItems: "center",
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: colors.text,
+  },
+  primaryButtonText: {
+    fontSize: fontSize.sm,
+    fontWeight: "600",
+    color: colors.bg,
+    letterSpacing: 0.5,
+  },
+  toggleText: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    letterSpacing: 0.5,
   },
   googleIcon: {
     fontSize: fontSize.lg,

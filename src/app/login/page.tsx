@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { signInWithUsername } from "@/lib/supabase/credentials";
 
 function AnimatedTextCycle({
   words,
@@ -127,6 +128,10 @@ const smileyDrawMouth: any = {
 
 export default function LoginPage() {
   const [error, setError] = useState("");
+  const [showCredentials, setShowCredentials] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [signingIn, setSigningIn] = useState(false);
 
   const handleGoogleLogin = async () => {
     setError("");
@@ -136,6 +141,21 @@ export default function LoginPage() {
       options: { redirectTo: `${window.location.origin}/api/auth/callback` },
     });
     if (error) setError(error.message);
+  };
+
+  const handleCredentialLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username.trim() || !password) return;
+    setSigningIn(true);
+    setError("");
+    const { error } = await signInWithUsername(username, password);
+    if (error) {
+      setError(error);
+      setSigningIn(false);
+      return;
+    }
+    // Full navigation so middleware picks up the freshly written session cookies.
+    window.location.href = "/today";
   };
 
   return (
@@ -252,13 +272,57 @@ export default function LoginPage() {
         </motion.div>
       </div>
 
-      {/* Google login — pinned to bottom */}
+      {/* Sign in — pinned to bottom */}
       <motion.div
         className="absolute bottom-8 sm:bottom-12 left-0 right-0 flex flex-col items-center gap-3 px-4 sm:px-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 2.4, duration: 0.6, ease: "easeOut" }}
       >
+        <AnimatePresence initial={false}>
+          {showCredentials && (
+            <motion.form
+              onSubmit={handleCredentialLogin}
+              className="w-full max-w-xs flex flex-col gap-2.5 overflow-hidden"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+            >
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  setError("");
+                }}
+                placeholder="username"
+                autoComplete="username"
+                autoCapitalize="none"
+                className="w-full bg-white/5 text-sm text-white placeholder:text-white/25 px-4 py-2.5 rounded-lg outline-none border border-white/15 focus:border-white/50 transition-colors"
+              />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setError("");
+                }}
+                placeholder="password"
+                autoComplete="current-password"
+                className="w-full bg-white/5 text-sm text-white placeholder:text-white/25 px-4 py-2.5 rounded-lg outline-none border border-white/15 focus:border-white/50 transition-colors"
+              />
+              <button
+                type="submit"
+                disabled={signingIn || !username.trim() || !password}
+                className="w-full py-2.5 rounded-lg bg-white text-black text-xs sm:text-sm font-semibold tracking-wide hover:bg-white/90 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {signingIn ? "Signing in..." : "Sign In"}
+              </button>
+            </motion.form>
+          )}
+        </AnimatePresence>
+
         <button
           onClick={handleGoogleLogin}
           className="flex items-center gap-3 px-6 sm:px-8 py-3 sm:py-3.5 rounded-lg border-2 border-white text-white text-xs sm:text-sm font-medium tracking-wide hover:bg-white hover:text-black transition-all duration-200"
@@ -282,6 +346,16 @@ export default function LoginPage() {
             />
           </svg>
           Continue with Google
+        </button>
+
+        <button
+          onClick={() => {
+            setShowCredentials((v) => !v);
+            setError("");
+          }}
+          className="text-white/45 hover:text-white/80 text-[11px] font-light tracking-wide transition-colors"
+        >
+          {showCredentials ? "Hide username sign in" : "Sign in with username"}
         </button>
 
         {error && (

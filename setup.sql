@@ -47,6 +47,8 @@ create table profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text,
   email text,
+  username text constraint profiles_username_format
+    check (username is null or username ~ '^[a-zA-Z0-9_]{3,24}$'),
   timezone text default 'America/Los_Angeles',
   created_at timestamptz default now(),
   updated_at timestamptz default now()
@@ -182,6 +184,7 @@ create index habits_user_active_idx on habits (user_id, is_active);
 create index habits_user_time_idx on habits (user_id, time_of_day) where is_active = true;
 create index assignments_user_status_idx on assignments (user_id, status);
 create index assignments_user_due_idx on assignments (user_id, due_date) where status != 'completed';
+create unique index profiles_username_lower_idx on profiles (lower(username));
 create index habit_completions_lookup_idx on habit_completions (habit_id, completed_date);
 create index habit_completions_user_date_idx on habit_completions (user_id, completed_date);
 create index skipped_recs_lookup_idx on skipped_recommendations (user_id, skipped_date);
@@ -365,6 +368,28 @@ create or replace function cleanup_old_skips()
 returns void language sql as $$
   delete from skipped_recommendations where skipped_date < current_date - interval '1 day';
 $$;
+
+-- Username -> email resolution for username + password login.
+-- Supabase authenticates on email + password, and an unauthenticated client cannot
+-- read profiles (RLS), so this is the one narrow lookup anon is allowed.
+-- Reads auth.users rather than profiles.email so it always matches the address
+-- signInWithPassword expects, even if the profile row is stale.
+create or replace function public.email_for_username(p_username text)
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select u.email
+  from public.profiles p
+  join auth.users u on u.id = p.id
+  where lower(p.username) = lower(trim(p_username))
+  limit 1;
+$$;
+
+revoke all on function public.email_for_username(text) from public;
+grant execute on function public.email_for_username(text) to anon, authenticated;
 
 -- Helper view
 create or replace view today_habits as
