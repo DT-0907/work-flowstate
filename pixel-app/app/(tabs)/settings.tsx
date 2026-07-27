@@ -17,6 +17,7 @@ import {
   createHabit,
   signOut,
   fetchUsername,
+  hasPassword,
   setUsername as saveUsername,
   setPassword as savePassword,
 } from "@/lib/api";
@@ -39,6 +40,8 @@ export default function SettingsScreen() {
   // Username + password credentials
   const [currentUsername, setCurrentUsername] = useState<string | null>(null);
   const [usernameInput, setUsernameInput] = useState("");
+  const [passwordSet, setPasswordSet] = useState(false);
+  const [currentPasswordInput, setCurrentPasswordInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
   const [confirmInput, setConfirmInput] = useState("");
   const [credError, setCredError] = useState("");
@@ -55,6 +58,7 @@ export default function SettingsScreen() {
       setCurrentUsername(u);
       setUsernameInput(u ?? "");
     });
+    hasPassword().then(setPasswordSet);
   }, []);
 
   const handleSaveCredentials = async () => {
@@ -64,6 +68,10 @@ export default function SettingsScreen() {
     if (!wantsUsername && !wantsPassword) return;
     if (wantsPassword && passwordInput !== confirmInput) {
       setCredError("Passwords do not match.");
+      return;
+    }
+    if (wantsPassword && passwordSet && !currentPasswordInput) {
+      setCredError("Enter your current password to change it.");
       return;
     }
 
@@ -82,12 +90,14 @@ export default function SettingsScreen() {
     }
 
     if (wantsPassword) {
-      const { error } = await savePassword(passwordInput);
+      const { error } = await savePassword(passwordInput, currentPasswordInput);
       if (error) {
         setCredError(error);
         setSavingCreds(false);
         return;
       }
+      setPasswordSet(true);
+      setCurrentPasswordInput("");
       setPasswordInput("");
       setConfirmInput("");
     }
@@ -231,9 +241,29 @@ export default function SettingsScreen() {
                 />
               </View>
 
+              {passwordSet && (
+                <View style={{ gap: spacing.xs }}>
+                  <Text style={styles.fieldLabel}>Current password</Text>
+                  <TextInput
+                    style={styles.textField}
+                    value={currentPasswordInput}
+                    onChangeText={(t) => {
+                      setCurrentPasswordInput(t);
+                      setCredError("");
+                      setCredStatus("");
+                    }}
+                    placeholder="Required to change"
+                    placeholderTextColor={colors.textMuted}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    secureTextEntry
+                  />
+                </View>
+              )}
+
               <View style={{ gap: spacing.xs }}>
                 <Text style={styles.fieldLabel}>
-                  {currentUsername ? "New password" : "Password"}
+                  {passwordSet ? "New password" : "Password"}
                 </Text>
                 <TextInput
                   style={styles.textField}

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import {
   fetchUsername,
+  hasPassword,
   setUsername as saveUsername,
   setPassword as savePassword,
 } from "@/lib/supabase/credentials";
@@ -27,6 +28,8 @@ export default function SettingsPage() {
   // Username + password credentials
   const [currentUsername, setCurrentUsername] = useState<string | null>(null);
   const [usernameInput, setUsernameInput] = useState("");
+  const [passwordSet, setPasswordSet] = useState(false);
+  const [currentPasswordInput, setCurrentPasswordInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
   const [confirmInput, setConfirmInput] = useState("");
   const [credError, setCredError] = useState("");
@@ -68,6 +71,7 @@ export default function SettingsPage() {
       setCurrentUsername(u);
       setUsernameInput(u ?? "");
     });
+    hasPassword().then(setPasswordSet);
   }, []);
 
   const saveCredentials = async () => {
@@ -77,6 +81,10 @@ export default function SettingsPage() {
     if (!wantsUsername && !wantsPassword) return;
     if (wantsPassword && passwordInput !== confirmInput) {
       setCredError("Passwords do not match.");
+      return;
+    }
+    if (wantsPassword && passwordSet && !currentPasswordInput) {
+      setCredError("Enter your current password to change it.");
       return;
     }
 
@@ -95,12 +103,14 @@ export default function SettingsPage() {
     }
 
     if (wantsPassword) {
-      const { error } = await savePassword(passwordInput);
+      const { error } = await savePassword(passwordInput, currentPasswordInput);
       if (error) {
         setCredError(error);
         setSavingCreds(false);
         return;
       }
+      setPasswordSet(true);
+      setCurrentPasswordInput("");
       setPasswordInput("");
       setConfirmInput("");
     }
@@ -366,6 +376,20 @@ export default function SettingsPage() {
           )}
         </p>
 
+        {passwordSet && (
+          <div className="sm:max-w-[calc(33%-0.5rem)]">
+            <label className="text-[10px] text-white/30 uppercase tracking-wider">Current password</label>
+            <input
+              type="password"
+              value={currentPasswordInput}
+              onChange={(e) => { setCurrentPasswordInput(e.target.value); setCredError(""); setCredStatus(""); }}
+              placeholder="Required to change"
+              autoComplete="current-password"
+              className="w-full bg-transparent text-sm text-white placeholder:text-white/20 px-3 py-2 rounded-lg outline-none border-2 border-white/20 focus:border-white/50 mt-1 font-mono"
+            />
+          </div>
+        )}
+
         <div className="grid sm:grid-cols-3 gap-3">
           <div>
             <label className="text-[10px] text-white/30 uppercase tracking-wider">Username</label>
@@ -380,7 +404,7 @@ export default function SettingsPage() {
           </div>
           <div>
             <label className="text-[10px] text-white/30 uppercase tracking-wider">
-              {currentUsername ? "New password" : "Password"}
+              {passwordSet ? "New password" : "Password"}
             </label>
             <input
               type="password"

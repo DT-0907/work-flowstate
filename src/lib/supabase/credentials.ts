@@ -52,11 +52,44 @@ export async function setUsername(username: string): Promise<{ error: string | n
   return { error: null };
 }
 
-export async function setPassword(password: string): Promise<{ error: string | null }> {
+export async function hasPassword(): Promise<boolean> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("current_user_has_password");
+  // Fail closed: if we cannot tell, assume a password exists and ask for it,
+  // rather than letting a session holder silently overwrite one.
+  if (error) return true;
+  return data === true;
+}
+
+export async function setPassword(
+  password: string,
+  currentPassword?: string
+): Promise<{ error: string | null }> {
   const invalid = validatePassword(password);
   if (invalid) return { error: invalid };
 
   const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  // Changing an existing password requires proving you know it, so a stolen
+  // session cannot be converted into permanent access. First-time set on a
+  // Google-only account has no password to confirm.
+  if (await hasPassword()) {
+    if (!currentPassword) {
+      return { error: "Enter your current password to change it." };
+    }
+    if (!user.email) return { error: "Account has no email address." };
+
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    });
+    if (reauthError) return { error: "Current password is incorrect." };
+  }
+
   const { error } = await supabase.auth.updateUser({ password });
   return { error: error?.message ?? null };
 }

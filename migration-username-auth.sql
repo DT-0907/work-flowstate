@@ -37,6 +37,29 @@ $$;
 revoke all on function public.email_for_username(text) from public;
 grant execute on function public.email_for_username(text) to anon, authenticated;
 
+-- 3. Does the caller already have a password?
+-- Settings requires the current password before changing an existing one, but a
+-- Google-only account has no password to confirm on first set. Reads the real
+-- password state instead of inferring it from auth.identities, whose linking
+-- semantics are not guaranteed. Returns only a boolean, only about yourself.
+create or replace function public.current_user_has_password()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(
+    (select u.encrypted_password is not null and u.encrypted_password <> ''
+     from auth.users u
+     where u.id = auth.uid()),
+    false
+  );
+$$;
+
+revoke all on function public.current_user_has_password() from public;
+grant execute on function public.current_user_has_password() to authenticated;
+
 -- ============================================================
 -- Done.
 -- ============================================================

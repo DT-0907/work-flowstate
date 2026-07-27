@@ -391,6 +391,28 @@ $$;
 revoke all on function public.email_for_username(text) from public;
 grant execute on function public.email_for_username(text) to anon, authenticated;
 
+-- Does the caller already have a password? Settings requires the current password
+-- before changing an existing one, but a Google-only account has no password to
+-- confirm on first set. Reads the real password state rather than inferring it
+-- from auth.identities. Returns only a boolean, only about yourself.
+create or replace function public.current_user_has_password()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(
+    (select u.encrypted_password is not null and u.encrypted_password <> ''
+     from auth.users u
+     where u.id = auth.uid()),
+    false
+  );
+$$;
+
+revoke all on function public.current_user_has_password() from public;
+grant execute on function public.current_user_has_password() to authenticated;
+
 -- Helper view
 create or replace view today_habits as
 select h.id, h.user_id, h.name, h.description, h.time_of_day, h.frequency,
