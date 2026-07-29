@@ -3,13 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 import { ensureProfile } from "@/lib/supabase/ensure-profile";
 import { generateEmbedding, buildHabitEmbeddingText } from "@/lib/ai/embeddings";
 import { LIFE_AREAS, AREA_KEYWORDS, type LifeArea } from "@/lib/types";
+import { todayPT } from "@/lib/date";
 
 export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayPT();
 
   const [habitsRes, completionsRes] = await Promise.all([
     supabase

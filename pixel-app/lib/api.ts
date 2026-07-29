@@ -13,6 +13,7 @@ import type {
   HabitFrequency,
 } from "./types";
 import { getTimeOfDay, todayISO } from "./utils";
+import { journalDatePT, startOfWeekPT, addDaysPT, dayStartISO, dayEndISO, PACIFIC_TZ } from "./date";
 
 // ── Auth ──
 
@@ -501,7 +502,7 @@ export async function fetchRecommendations(): Promise<Recommendation[]> {
         ? "Overdue!"
         : hoursLeft < 24
           ? "Due today"
-          : `Due ${new Date(a.due_date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}`,
+          : `Due ${new Date(a.due_date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: PACIFIC_TZ })}`,
     });
   }
 
@@ -567,7 +568,7 @@ export async function fetchJournalEntry(date?: string): Promise<JournalEntry | n
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const entryDate = date || todayISO();
+  const entryDate = date || journalDatePT();
   const { data } = await supabase
     .from("journal_entries")
     .select("*")
@@ -642,18 +643,13 @@ export async function fetchWeekOverview(): Promise<DayOverview[]> {
   const user = await getCurrentUser();
   if (!user) return [];
 
-  const today = new Date();
-  const dayOfWeek = today.getDay();
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
+  const monday = startOfWeekPT();
 
   const days: DayOverview[] = [];
   const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   for (let i = 0; i < 7; i++) {
-    const date = new Date(monday);
-    date.setDate(monday.getDate() + i);
-    const dateStr = date.toISOString().split("T")[0];
+    const dateStr = addDaysPT(monday, i);
 
     const { data: completions } = await supabase
       .from("habit_completions")
@@ -671,8 +667,8 @@ export async function fetchWeekOverview(): Promise<DayOverview[]> {
       .from("assignments")
       .select("*")
       .eq("user_id", user.id)
-      .gte("due_date", `${dateStr}T00:00:00`)
-      .lte("due_date", `${dateStr}T23:59:59`);
+      .gte("due_date", dayStartISO(dateStr))
+      .lt("due_date", dayEndISO(dateStr));
 
     days.push({
       date: dateStr,
@@ -701,15 +697,13 @@ export async function fetchStats() {
   const completed = habits.filter((h) => h.completed_today).length;
   const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  const today = new Date();
-  const endOfWeek = new Date(today);
-  endOfWeek.setDate(today.getDate() + (7 - today.getDay()));
+  const endOfWeek = addDaysPT(startOfWeekPT(), 6); // Sunday, Pacific
   const { data: dueAssignments } = await supabase
     .from("assignments")
     .select("id")
     .eq("user_id", user.id)
     .neq("status", "completed")
-    .lte("due_date", endOfWeek.toISOString());
+    .lt("due_date", dayEndISO(endOfWeek));
 
   return {
     activeStreaks,

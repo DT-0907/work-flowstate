@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ensureProfile } from "@/lib/supabase/ensure-profile";
+import { journalDatePT } from "@/lib/date";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -8,7 +9,7 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const url = new URL(request.url);
-  const date = url.searchParams.get("date") || new Date().toISOString().split("T")[0];
+  const date = url.searchParams.get("date") || journalDatePT();
 
   const { data } = await supabase
     .from("journal_entries")
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
   await ensureProfile(supabase, user.id, user.email);
 
   const body = await request.json();
-  const date = body.date || new Date().toISOString().split("T")[0];
+  const date = body.date || journalDatePT();
 
   const { data, error } = await supabase
     .from("journal_entries")

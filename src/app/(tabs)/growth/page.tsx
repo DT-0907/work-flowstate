@@ -6,6 +6,7 @@ import { JournalEntryForm } from "@/components/journal-entry";
 import { JournalCalendar } from "@/components/journal-calendar";
 import { Calendar as CalendarIcon, Brain, Heart, Sparkles, DollarSign, Dumbbell, Users } from "lucide-react";
 import type { LifeArea, LifeAreaScore } from "@/lib/types";
+import { journalDatePT, todayPT } from "@/lib/date";
 
 const AREA_ICONS: Record<LifeArea, React.ElementType> = {
   intellectual: Brain,
@@ -27,9 +28,7 @@ const AREA_LABELS: Record<LifeArea, string> = {
 
 export default function GrowthPage() {
   const [scores, setScores] = useState<LifeAreaScore[]>([]);
-  const [journalDate, setJournalDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [journalDate, setJournalDate] = useState(journalDatePT);
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   const fetchScores = useCallback(async () => {

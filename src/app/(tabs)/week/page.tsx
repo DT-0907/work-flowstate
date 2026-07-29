@@ -5,13 +5,12 @@ import { WeekStrip } from "@/components/week-strip";
 import { DayDetail } from "@/components/day-detail";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { WeekOverview } from "@/lib/types";
+import { todayPT } from "@/lib/date";
 import { Calendar } from "lucide-react";
 
 export default function WeekPage() {
   const [week, setWeek] = useState<WeekOverview | null>(null);
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [selectedDate, setSelectedDate] = useState(todayPT);
   const [loading, setLoading] = useState(true);
 
   const fetchWeek = useCallback(async () => {

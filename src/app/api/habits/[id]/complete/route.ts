@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { todayPT } from "@/lib/date";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -8,7 +9,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json().catch(() => ({}));
-  const date = body.date || new Date().toISOString().split("T")[0];
+  const date = body.date || todayPT();
 
   const { error } = await supabase
     .from("habit_completions")
@@ -39,7 +40,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const url = new URL(request.url);
-  const date = url.searchParams.get("date") || new Date().toISOString().split("T")[0];
+  const date = url.searchParams.get("date") || todayPT();
 
   const { error } = await supabase
     .from("habit_completions")

@@ -1,17 +1,15 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { DayOverview } from "@/lib/types";
+import { startOfWeekPT, addDaysPT, dayStartISO, dayEndISO, weekdayShort, toPacificDate } from "@/lib/date";
 
 export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const today = new Date();
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay() + 1); // Monday
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 6); // Sunday
+  const startOfWeek = startOfWeekPT(); // Monday, Pacific
+  const endOfWeek = addDaysPT(startOfWeek, 6); // Sunday
 
   const [habitsRes, assignmentsRes, completionsRes] = await Promise.all([
     supabase
@@ -24,15 +22,15 @@ export async function GET() {
       .select("*")
       .eq("user_id", user.id)
       .neq("status", "completed")
-      .gte("due_date", startOfWeek.toISOString())
-      .lte("due_date", endOfWeek.toISOString())
+      .gte("due_date", dayStartISO(startOfWeek))
+      .lt("due_date", dayEndISO(endOfWeek))
       .order("due_date"),
     supabase
       .from("habit_completions")
       .select("habit_id, completed_date")
       .eq("user_id", user.id)
-      .gte("completed_date", startOfWeek.toISOString().split("T")[0])
-      .lte("completed_date", endOfWeek.toISOString().split("T")[0]),
+      .gte("completed_date", startOfWeek)
+      .lte("completed_date", endOfWeek),
   ]);
 
   const habits = habitsRes.data || [];
@@ -41,16 +39,13 @@ export async function GET() {
 
   const days: DayOverview[] = [];
   for (let i = 0; i < 7; i++) {
-    const date = new Date(startOfWeek);
-    date.setDate(startOfWeek.getDate() + i);
-    const dateStr = date.toISOString().split("T")[0];
-    const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
+    const dateStr = addDaysPT(startOfWeek, i);
+    const dayName = weekdayShort(dateStr);
 
     const dayCompletions = completions.filter((c) => c.completed_date === dateStr);
-    const dayAssignments = assignments.filter((a) => {
-      const dueDate = new Date(a.due_date).toISOString().split("T")[0];
-      return dueDate === dateStr;
-    });
+    const dayAssignments = assignments.filter(
+      (a) => toPacificDate(new Date(a.due_date)) === dateStr
+    );
 
     days.push({
       date: dateStr,

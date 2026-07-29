@@ -1,4 +1,5 @@
 import type { Habit, Assignment } from "@/lib/types";
+import { PACIFIC_TZ } from "@/lib/date";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let pipelineInstance: any = null;
@@ -38,6 +39,7 @@ export function buildAssignmentEmbeddingText(
     weekday: "long",
     month: "short",
     day: "numeric",
+    timeZone: PACIFIC_TZ,
   });
   return `Assignment for ${assignment.course}: ${assignment.name}. ${assignment.description || ""}. Due: ${due}. Estimated time: ${assignment.estimated_minutes} minutes. Priority: ${assignment.priority}.`.trim();
 }
@@ -49,8 +51,8 @@ export function buildContextEmbeddingText(
   completedToday: string[]
 ): string {
   const now = new Date();
-  const dayName = now.toLocaleDateString("en-US", { weekday: "long" });
-  const time = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const dayName = now.toLocaleDateString("en-US", { weekday: "long", timeZone: PACIFIC_TZ });
+  const time = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: PACIFIC_TZ });
 
   let text = `It's ${dayName} ${timeOfDay} at ${time}. Looking for productive ${timeOfDay} tasks.`;
   if (upcomingAssignments.length > 0) {

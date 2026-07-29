@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { todayPT } from "@/lib/date";
 import type { DayOverview } from "@/lib/types";
 
 interface Props {
@@ -10,7 +11,7 @@ interface Props {
 }
 
 export function WeekStrip({ days, selectedDate, onSelect }: Props) {
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayPT();
 
   return (
     <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">

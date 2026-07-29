@@ -1,6 +1,7 @@
 "use client";
 
 import type { DayOverview, Assignment } from "@/lib/types";
+import { todayPT } from "@/lib/date";
 import { UrgencyIndicator } from "./urgency-indicator";
 import { CalendarCheck, BookOpen, Sparkles } from "lucide-react";
 
@@ -9,7 +10,7 @@ interface Props {
 }
 
 export function DayDetail({ day }: Props) {
-  const isToday = day.date === new Date().toISOString().split("T")[0];
+  const isToday = day.date === todayPT();
   const displayDate = new Date(day.date + "T12:00:00").toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",

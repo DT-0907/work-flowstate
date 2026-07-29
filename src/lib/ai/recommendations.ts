@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import type { Recommendation, TimeOfDay } from "@/lib/types";
+import { todayPT, PACIFIC_TZ } from "@/lib/date";
 
 export async function getRecommendations(
   userId: string,
@@ -7,7 +8,7 @@ export async function getRecommendations(
 ): Promise<Recommendation[]> {
   const supabase = await createServiceClient();
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayPT();
 
   // Fetch incomplete habits + today's completions
   const [habitsRes, completionsRes, assignmentsRes] = await Promise.all([
@@ -92,7 +93,7 @@ export async function getRecommendations(
         ? "Overdue!"
         : hoursLeft < 24
           ? "Due today"
-          : `Due ${new Date(a.due_date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}`,
+          : `Due ${new Date(a.due_date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: PACIFIC_TZ })}`,
     });
   }
 

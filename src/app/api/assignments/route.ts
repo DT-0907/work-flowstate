@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ensureProfile } from "@/lib/supabase/ensure-profile";
 import { generateEmbedding, buildAssignmentEmbeddingText } from "@/lib/ai/embeddings";
+import { todayPT, dayStartISO } from "@/lib/date";
 
 export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayPT();
 
   // Ensure default Miscellaneous grouping exists
   await supabase
@@ -35,7 +36,7 @@ export async function GET() {
     .select("*")
     .eq("user_id", user.id)
     .eq("status", "completed")
-    .gte("due_date", `${today}T00:00:00`)
+    .gte("due_date", dayStartISO(today))
     .order("due_date");
 
   const assignments = [...(pending || []), ...(completed || [])];

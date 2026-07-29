@@ -1,7 +1,8 @@
 import type { TimeOfDay } from "./types";
+import { pacificHour, todayPT, PACIFIC_TZ } from "./date";
 
 export function getTimeOfDay(): TimeOfDay {
-  const hour = new Date().getHours();
+  const hour = pacificHour();
   if (hour >= 5 && hour < 12) return "morning";
   if (hour >= 12 && hour < 17) return "midday";
   return "night";
@@ -48,7 +49,7 @@ export function priorityColor(priority: string): string {
 }
 
 export function todayISO(): string {
-  return new Date().toISOString().split("T")[0];
+  return todayPT();
 }
 
 export function formatDate(date: string | Date): string {
@@ -56,5 +57,6 @@ export function formatDate(date: string | Date): string {
     weekday: "short",
     month: "short",
     day: "numeric",
+    timeZone: PACIFIC_TZ,
   });
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { todayPT } from "@/lib/date";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
     user_id: user.id,
     task_id,
     task_type,
-    skipped_date: new Date().toISOString().split("T")[0],
+    skipped_date: todayPT(),
   });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

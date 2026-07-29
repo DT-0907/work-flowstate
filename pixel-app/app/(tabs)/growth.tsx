@@ -13,7 +13,7 @@ import { Feather } from "@expo/vector-icons";
 import { colors, fontSize, spacing, borderRadius } from "@/lib/theme";
 import { LIFE_AREAS, AREA_LABELS, type LifeAreaScore, type JournalEntry } from "@/lib/types";
 import { fetchScores, fetchJournalEntry, saveJournalEntry } from "@/lib/api";
-import { todayISO } from "@/lib/utils";
+import { journalDatePT, todayPT, formatDateLabel } from "@/lib/date";
 
 const AREA_COLORS: Record<string, string> = {
   intellectual: "#60a5fa",
@@ -33,17 +33,24 @@ export default function GrowthScreen() {
   const [improve, setImprove] = useState("");
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  // Tomorrow's entry unlocks at 10pm PT so the next day can be planned the night before.
+  const [journalDate, setJournalDate] = useState(journalDatePT);
 
   const loadData = useCallback(async () => {
-    const [s, j] = await Promise.all([fetchScores(), fetchJournalEntry()]);
+    const date = journalDatePT();
+    setJournalDate(date);
+    const [s, j] = await Promise.all([fetchScores(), fetchJournalEntry(date)]);
     setScores(s);
-    if (j) {
-      setJournal(j);
-      setGoals(j.goals.length >= 3 ? j.goals.slice(0, 3) : [...j.goals, ...Array(3 - j.goals.length).fill("")]);
-      setAppreciation(j.appreciation || "");
-      setLearned(j.learned || "");
-      setImprove(j.improve || "");
-    }
+    setJournal(j);
+    const entryGoals = j?.goals ?? [];
+    setGoals(
+      entryGoals.length >= 3
+        ? entryGoals.slice(0, 3)
+        : [...entryGoals, ...Array(3 - entryGoals.length).fill("")]
+    );
+    setAppreciation(j?.appreciation || "");
+    setLearned(j?.learned || "");
+    setImprove(j?.improve || "");
   }, []);
 
   useEffect(() => {
@@ -59,7 +66,7 @@ export default function GrowthScreen() {
   const handleSaveJournal = async () => {
     setSaving(true);
     await saveJournalEntry({
-      date: todayISO(),
+      date: journalDate,
       goals: goals.filter((g) => g.trim()),
       appreciation,
       learned,
@@ -107,10 +114,11 @@ export default function GrowthScreen() {
         <View style={styles.journalSection}>
           <Text style={styles.sectionTitle}>Daily Journal</Text>
           <Text style={styles.journalDate}>
-            {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+            {formatDateLabel(journalDate)}
+            {journalDate !== todayPT() ? " · Tomorrow" : ""}
           </Text>
 
-          <Text style={styles.journalPrompt}>3 things I want to accomplish today:</Text>
+          <Text style={styles.journalPrompt}>3 things I want to accomplish:</Text>
           {goals.map((goal, i) => (
             <TextInput
               key={i}

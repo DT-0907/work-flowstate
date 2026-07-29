@@ -12,7 +12,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { colors, fontSize, spacing, borderRadius } from "@/lib/theme";
 import { fetchWeekOverview, fetchHabits, completeHabit, uncompleteHabit } from "@/lib/api";
-import { formatRelativeDate, urgencyColor } from "@/lib/utils";
+import { formatRelativeDate, urgencyColor, todayISO } from "@/lib/utils";
 import type { DayOverview, Habit } from "@/lib/types";
 
 export default function WeekScreen() {
@@ -25,8 +25,7 @@ export default function WeekScreen() {
     const overview = await fetchWeekOverview();
     setDays(overview);
     if (!selectedDate && overview.length > 0) {
-      const today = new Date().toISOString().split("T")[0];
-      setSelectedDate(today);
+      setSelectedDate(todayISO());
     }
   }, [selectedDate]);
 
@@ -47,7 +46,7 @@ export default function WeekScreen() {
   };
 
   const selectedDay = days.find((d) => d.date === selectedDate);
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = todayISO();
 
   const handleToggleHabit = async (habit: Habit) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

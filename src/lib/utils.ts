@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { pacificHour } from "@/lib/date";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -8,7 +9,7 @@ export function cn(...inputs: ClassValue[]) {
 export type TimeOfDay = "morning" | "midday" | "night";
 
 export function getTimeOfDay(): TimeOfDay {
-  const hour = new Date().getHours();
+  const hour = pacificHour();
   if (hour >= 5 && hour < 12) return "morning";
   if (hour >= 12 && hour < 17) return "midday";
   return "night";

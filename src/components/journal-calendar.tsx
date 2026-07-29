@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { todayPT, journalDatePT } from "@/lib/date";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
 interface Props {
@@ -27,6 +28,9 @@ export function JournalCalendar({ open, onClose, onSelectDate, selectedDate }: P
 
   if (!open) return null;
 
+  const today = todayPT();
+  // Tomorrow's entry unlocks at 10pm PT so the next day can be planned the night before.
+  const latestOpenDate = journalDatePT();
   const { year, month } = viewMonth;
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -78,12 +82,13 @@ export function JournalCalendar({ open, onClose, onSelectDate, selectedDate }: P
             const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
             const hasEntry = entryDates.has(dateStr);
             const isSelected = dateStr === selectedDate;
-            const isToday = dateStr === new Date().toISOString().split("T")[0];
+            const isToday = dateStr === today;
+            const selectable = hasEntry || dateStr === today || dateStr === latestOpenDate;
 
             return (
               <button
                 key={dateStr}
-                disabled={!hasEntry}
+                disabled={!selectable}
                 onClick={() => {
                   onSelectDate(dateStr);
                   onClose();
@@ -91,8 +96,8 @@ export function JournalCalendar({ open, onClose, onSelectDate, selectedDate }: P
                 className={cn(
                   "w-8 h-8 rounded-lg text-xs font-mono transition-all mx-auto flex items-center justify-center",
                   isSelected && "bg-white text-black",
-                  !isSelected && hasEntry && "text-white hover:bg-white/10 cursor-pointer",
-                  !isSelected && !hasEntry && "text-white/20 cursor-default",
+                  !isSelected && selectable && "text-white hover:bg-white/10 cursor-pointer",
+                  !isSelected && !selectable && "text-white/20 cursor-default",
                   isToday && !isSelected && "ring-1 ring-white/40"
                 )}
               >

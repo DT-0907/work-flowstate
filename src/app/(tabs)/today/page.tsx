@@ -2,6 +2,7 @@ import { RecommendationRow } from "@/components/recommendation-row";
 import { HabitList } from "@/components/habit-list";
 import { AssignmentList } from "@/components/assignment-list";
 import { StatsBar } from "@/components/stats-bar";
+import { TodayDate } from "@/components/today-date";
 
 export default function TodayPage() {
   return (
@@ -9,13 +10,7 @@ export default function TodayPage() {
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white font-mono tracking-widest uppercase">FlowState</h1>
-          <p className="text-sm text-white/30 font-mono">
-            {new Date().toLocaleDateString("en-US", {
-              weekday: "long",
-              month: "short",
-              day: "numeric",
-            })}
-          </p>
+          <TodayDate />
         </div>
       </header>
 
