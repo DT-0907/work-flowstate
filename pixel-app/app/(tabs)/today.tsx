@@ -30,6 +30,7 @@ import {
   completeAssignment,
   skipRecommendation,
 } from "@/lib/api";
+import { dueByISO, addDaysPT, todayPT } from "@/lib/date";
 import type { Habit, Assignment, AssignmentGrouping, Recommendation } from "@/lib/types";
 import { useAuth } from "@/lib/auth-context";
 
@@ -145,12 +146,10 @@ export default function TodayScreen() {
 
   const handleAddAssignment = async () => {
     if (!newAssignmentName.trim()) return;
-    const nextWeek = new Date();
-    nextWeek.setDate(nextWeek.getDate() + 7);
     await createAssignment({
       name: newAssignmentName.trim(),
       course: newAssignmentCourse.trim(),
-      due_date: nextWeek.toISOString(),
+      due_date: dueByISO(addDaysPT(todayPT(), 7)),
       priority: "medium",
       group_id: selectedGroupId || undefined,
       repeats_weekly: newAssignmentRepeats,

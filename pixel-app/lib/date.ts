@@ -18,6 +18,7 @@ export interface PacificParts {
   day: number;
   hour: number;
   minute: number;
+  second: number;
 }
 
 function partsFromIntl(d: Date): PacificParts | null {
@@ -30,11 +31,12 @@ function partsFromIntl(d: Date): PacificParts | null {
       day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
+      second: "2-digit",
     }).formatToParts(d);
 
     const p: Record<string, string> = {};
     for (const { type, value } of formatted) p[type] = value;
-    if (!p.year || !p.month || !p.day || !p.hour || !p.minute) return null;
+    if (!p.year || !p.month || !p.day || !p.hour || !p.minute || !p.second) return null;
 
     return {
       year: Number(p.year),
@@ -42,6 +44,7 @@ function partsFromIntl(d: Date): PacificParts | null {
       day: Number(p.day),
       hour: Number(p.hour) % 24, // some engines report midnight as "24"
       minute: Number(p.minute),
+      second: Number(p.second),
     };
   } catch {
     return null;
@@ -75,6 +78,7 @@ function partsFromOffset(d: Date): PacificParts {
     day: shifted.getUTCDate(),
     hour: shifted.getUTCHours(),
     minute: shifted.getUTCMinutes(),
+    second: shifted.getUTCSeconds(),
   };
 }
 
@@ -123,15 +127,39 @@ export function isJournalDateAvailable(date: string, now: Date = new Date()): bo
   return date <= journalDatePT(now);
 }
 
+/** UTC offset in effect in Pacific on `date`, e.g. "-07:00". */
+export function pacificOffsetFor(date: string): string {
+  return isPacificDST(new Date(`${date}T12:00:00Z`)) ? "-07:00" : "-08:00";
+}
+
 /** The instant midnight Pacific begins on `date`, as an offset-qualified ISO string. */
 export function dayStartISO(date: string): string {
-  const offset = isPacificDST(new Date(`${date}T12:00:00Z`)) ? "-07:00" : "-08:00";
-  return `${date}T00:00:00${offset}`;
+  return `${date}T00:00:00${pacificOffsetFor(date)}`;
 }
 
 /** The instant the Pacific day `date` ends (i.e. midnight of the next day). */
 export function dayEndISO(date: string): string {
   return dayStartISO(addDaysPT(date, 1));
+}
+
+/**
+ * When something picked for `date` on a date-only input is due: the last second
+ * of that Pacific day. Storing the *start* of the day would make an assignment
+ * read as overdue for the whole day it is actually due.
+ */
+export function dueByISO(date: string): string {
+  return `${date}T23:59:59${pacificOffsetFor(date)}`;
+}
+
+/**
+ * Shift an instant by whole days on the Pacific calendar, keeping the same
+ * wall-clock time. Adding 7*24h instead would drift an hour across a DST
+ * change — enough to push a near-midnight due date onto the wrong day.
+ */
+export function shiftDaysPreservingWallClock(instant: Date, days: number): string {
+  const { hour, minute, second } = pacificParts(instant);
+  const date = addDaysPT(toPacificDate(instant), days);
+  return `${date}T${pad(hour)}:${pad(minute)}:${pad(second)}${pacificOffsetFor(date)}`;
 }
 
 /** Monday of the Pacific week containing `now`, as "YYYY-MM-DD". */

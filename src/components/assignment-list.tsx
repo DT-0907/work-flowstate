@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Assignment, AssignmentGrouping, AssignmentPriority } from "@/lib/types";
+import { dueByISO } from "@/lib/date";
 import { AssignmentRow } from "./assignment-row";
 import { Plus, X, BookOpen, ChevronDown, ChevronRight, FolderPlus, Trash2 } from "lucide-react";
 
@@ -60,7 +61,7 @@ export function AssignmentList() {
       body: JSON.stringify({
         name: name.trim(),
         course: course.trim(),
-        due_date: new Date(dueDate).toISOString(),
+        due_date: dueByISO(dueDate),
         estimated_minutes: parseInt(estimatedMinutes) || 60,
         priority,
         group_id: selectedGroupId || undefined,

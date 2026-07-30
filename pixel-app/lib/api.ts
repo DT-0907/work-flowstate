@@ -13,7 +13,15 @@ import type {
   HabitFrequency,
 } from "./types";
 import { getTimeOfDay, todayISO } from "./utils";
-import { journalDatePT, startOfWeekPT, addDaysPT, dayStartISO, dayEndISO, PACIFIC_TZ } from "./date";
+import {
+  journalDatePT,
+  startOfWeekPT,
+  addDaysPT,
+  dayStartISO,
+  dayEndISO,
+  shiftDaysPreservingWallClock,
+  PACIFIC_TZ,
+} from "./date";
 
 // ── Auth ──
 
@@ -312,7 +320,7 @@ export async function fetchAssignments(): Promise<Assignment[]> {
     .select("*")
     .eq("user_id", user.id)
     .eq("status", "completed")
-    .gte("due_date", `${today}T00:00:00`)
+    .gte("due_date", dayStartISO(today))
     .order("due_date", { ascending: true });
 
   return [...(pending || []), ...(completed || [])];
@@ -394,8 +402,7 @@ export async function completeAssignment(id: string) {
 
   // If repeats weekly, create next week's copy
   if (existing.repeats_weekly) {
-    const nextDueDate = new Date(existing.due_date);
-    nextDueDate.setDate(nextDueDate.getDate() + 7);
+    const nextDueDate = shiftDaysPreservingWallClock(new Date(existing.due_date), 7);
 
     await supabase.from("assignments").insert({
       user_id: user.id,
@@ -403,7 +410,7 @@ export async function completeAssignment(id: string) {
       name: existing.name,
       description: existing.description,
       course: existing.course,
-      due_date: nextDueDate.toISOString(),
+      due_date: nextDueDate,
       estimated_minutes: existing.estimated_minutes,
       priority: existing.priority,
       repeats_weekly: true,
