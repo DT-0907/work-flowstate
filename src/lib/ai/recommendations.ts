@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import type { Recommendation, TimeOfDay } from "@/lib/types";
-import { todayPT, PACIFIC_TZ } from "@/lib/date";
+import { todayPT, toPacificDate, daysBetweenPT, formatDateLabel } from "@/lib/date";
 
 export async function getRecommendations(
   userId: string,
@@ -79,7 +79,8 @@ export async function getRecommendations(
 
   // Always: top 1 assignment
   for (const a of scoredAssignments.slice(0, 1)) {
-    const hoursLeft = (new Date(a.due_date).getTime() - Date.now()) / (1000 * 60 * 60);
+    const dueDate = toPacificDate(new Date(a.due_date));
+    const daysLeft = daysBetweenPT(todayPT(), dueDate);
     results.push({
       id: a.id,
       name: a.name,
@@ -89,11 +90,11 @@ export async function getRecommendations(
       due_date: a.due_date,
       estimated_minutes: a.estimated_minutes,
       priority: a.priority,
-      reason: hoursLeft < 0
+      reason: daysLeft < 0
         ? "Overdue!"
-        : hoursLeft < 24
+        : daysLeft === 0
           ? "Due today"
-          : `Due ${new Date(a.due_date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: PACIFIC_TZ })}`,
+          : `Due ${formatDateLabel(dueDate, { weekday: "short", month: "short", day: "numeric" })}`,
     });
   }
 

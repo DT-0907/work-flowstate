@@ -1,5 +1,12 @@
 import type { TimeOfDay } from "./types";
-import { pacificHour, todayPT, PACIFIC_TZ } from "./date";
+import {
+  pacificHour,
+  todayPT,
+  toPacificDate,
+  daysBetweenPT,
+  formatDateLabel,
+  PACIFIC_TZ,
+} from "./date";
 
 export function getTimeOfDay(): TimeOfDay {
   const hour = pacificHour();
@@ -18,16 +25,14 @@ export function getGreeting(): string {
 }
 
 export function formatRelativeDate(date: string | Date): string {
-  const d = new Date(date);
-  const now = new Date();
-  const diffMs = d.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const due = toPacificDate(new Date(date));
+  const diffDays = daysBetweenPT(todayPT(), due);
 
   if (diffDays < 0) return `${Math.abs(diffDays)}d overdue`;
   if (diffDays === 0) return "Due today";
   if (diffDays === 1) return "Due tomorrow";
   if (diffDays <= 7) return `Due in ${diffDays}d`;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return formatDateLabel(due, { month: "short", day: "numeric" });
 }
 
 export function urgencyColor(date: string | Date): string {

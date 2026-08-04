@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { pacificHour } from "@/lib/date";
+import { pacificHour, todayPT, toPacificDate, daysBetweenPT, formatDateLabel } from "@/lib/date";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -20,16 +20,14 @@ export function getTimeOfDayLabel(tod: TimeOfDay): string {
 }
 
 export function formatRelativeDate(date: string | Date): string {
-  const d = new Date(date);
-  const now = new Date();
-  const diffMs = d.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const due = toPacificDate(new Date(date));
+  const diffDays = daysBetweenPT(todayPT(), due);
 
   if (diffDays < 0) return `${Math.abs(diffDays)}d overdue`;
   if (diffDays === 0) return "Due today";
   if (diffDays === 1) return "Due tomorrow";
   if (diffDays <= 7) return `Due in ${diffDays}d`;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return formatDateLabel(due, { month: "short", day: "numeric" });
 }
 
 export function urgencyColor(date: string | Date): string {

@@ -169,6 +169,17 @@ export function startOfWeekPT(now: Date = new Date()): string {
   return addDaysPT(today, dow === 0 ? -6 : 1 - dow);
 }
 
+/**
+ * Whole Pacific calendar days from `from` to `to` (negative if `to` is earlier).
+ * Compare dates with this rather than dividing an elapsed-millisecond difference:
+ * something due at 11:59pm tonight is due *today*, not "in 1 day".
+ */
+export function daysBetweenPT(from: string, to: string): number {
+  const a = new Date(`${from}T12:00:00Z`).getTime();
+  const b = new Date(`${to}T12:00:00Z`).getTime();
+  return Math.round((b - a) / 86_400_000);
+}
+
 /** Human label ("Wednesday, July 29") for a "YYYY-MM-DD" string. */
 export function formatDateLabel(
   date: string,
